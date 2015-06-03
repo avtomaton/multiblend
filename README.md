@@ -1,2 +1,2 @@
 # multiblend
-Panorama blending software
+Panorama blending software - fork of http://horman.net/multiblend/
