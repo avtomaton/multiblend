@@ -1,7 +1,6 @@
-union intfloat {
-	float f;
-	int i;
-};
+#include "structs.h"
+#include "globals.h"
+#include "functions.h"
 
 void png_mask(int i) {
   int x,y;

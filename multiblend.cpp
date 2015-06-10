@@ -22,39 +22,10 @@
 */
 
 #include <algorithm>
-using namespace std;
-#include <math.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#ifdef __APPLE__
-  #define memalign(a,b) malloc((b))
-#else
-  #include <malloc.h>
-#endif
-#include <emmintrin.h>
 
-#ifdef WIN32
-#define NOMINMAX
-#include <Windows.h>
-#endif
-
-#define PY(i,l) g_images[i].pyramid[l]
-
-#include <stdarg.h>
-#include <jpeglib.h>
-#include <png.h>
-#include <tiffio.h>
-#include "globals.cpp"
-#include "functions.cpp"
-#include "geotiff.cpp"
-#include "loadimages.cpp"
-#include "seaming.cpp"
-#include "maskpyramids.cpp"
-#include "blending.cpp"
-#include "write.cpp"
-#include "pseudowrap.cpp"
-#include "go.cpp"
+#include "globals.h"
+#include "functions.h"
 
 #ifdef WIN32
 #pragma comment(lib,"libtiff.lib")
@@ -116,7 +87,7 @@ int main(int argc, char* argv[]) {
 		}
 		else if (!strcmp(argv[i],"-l")) {
 			temp=atoi(argv[++i]);
-			if (temp>=0) g_max_levels=max(1,temp); else g_sub_levels=-temp;
+			if (temp>=0) g_max_levels=std::max(1,temp); else g_sub_levels=-temp;
 		}
 		else if (!strcmp(argv[i],"--nomask")) g_nomask=true;
 		else if (!strcmp(argv[i],"--nocrop")) g_crop=false;
@@ -140,7 +111,7 @@ int main(int argc, char* argv[]) {
 			else if (atoi(comp)>0) g_jpegquality=atoi(comp);
 			else if (_stricmp(comp,"lzw")==0) g_compression=COMPRESSION_LZW;
 			else if (_stricmp(comp,"packbits")==0) g_compression=COMPRESSION_PACKBITS;
-//			else if (_stricmp(comp,"deflate")==0) g_compression=COMPRESSION_DEFLATE;
+			//else if (_stricmp(comp,"deflate")==0) g_compression=COMPRESSION_DEFLATE;
 			else if (_stricmp(comp,"none")==0) g_compression=COMPRESSION_NONE;
 			else die("unknown compression codec");
 		}
@@ -196,11 +167,10 @@ int main(int argc, char* argv[]) {
 
 	clear_temp();
 
-  if (g_debug) {
+	if (g_debug) {
 		printf("\nPress Enter to end\n");
 		getchar();
 	}
 
-	exit(0);
 	return 0;
 }

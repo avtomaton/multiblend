@@ -1,3 +1,7 @@
+#include "globals.h"
+#include "functions.h"
+#include <cmath>
+
 void dewhorl_old() {
 	int l;
 	int x;

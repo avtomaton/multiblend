@@ -1,6 +1,8 @@
 YMMV, but best results on Linux seem to be had with:
 
-	g++ -msse2 -O3 -ltiff -ltiffxx -ljpeg -lpng multiblend.cpp -o multiblend
+g++ -std=c++11 -msse2 -O3 -I/usr/local/include -L/usr/local/lib -lopencv_core -ltiff -ltiffxx -ljpeg  -L/usr/local/Cellar/libpng/1.6.17/lib -lpng multiblend.cpp globals.cpp functions.cpp structs.cpp geotiff.cpp loadimages.cpp seaming.cpp maskpyramids.cpp blending.cpp write.cpp pseudowrap.cpp go.cpp -o multiblend
+
+./multiblend -o res.tif 000000001-1.tif 000000001-2.tif 000000001-3.tif 000000001-4.tif 000000001-5.tif 000000001-6.tif
 
 FreeBSD may need:
 

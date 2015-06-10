@@ -1,3 +1,6 @@
+#include "globals.h"
+#include "functions.h"
+
 // some defintions for geotiff
 
 #define TIFFTAG_GEOPIXELSCALE   33550

@@ -1,8 +1,8 @@
-#define NEXTiMASK(i) { temp=*g_images[i].binary_mask.pointer++; maskcount[i]=temp&0x7fffffff; mask[i]=~temp&0x80000000; }
-#define PREViMASK(i) { temp=*--g_images[i].binary_mask.pointer; maskcount[i]=temp&0x7fffffff; mask[i]=~temp&0x80000000; }
+#include "globals.h"
+#include "functions.h"
+#include "defines.h"
 
-#define MASKON 0
-#define MASKOFF 0x80000000
+#include <algorithm>
 
 void seam_png(int mode, const char* filename) {
   int x;
@@ -29,11 +29,11 @@ void seam_png(int mode, const char* filename) {
 
 		for (i=0; i<255; i++) {
 			rad=base;
-			r=max<double>(0,min<double>(1.0,min<double>(rad,4-rad)));
+			r=std::max<double>(0,std::min<double>(1.0,std::min<double>(rad,4-rad)));
 			rad+=2; if (rad>=6) rad-=6;
-			g=max<double>(0,min<double>(1.0,min<double>(rad,4-rad)));
+			g=std::max<double>(0,std::min<double>(1.0,std::min<double>(rad,4-rad)));
 			rad+=2; if (rad>=6) rad-=6;
-			b=max<double>(0,min<double>(1.0,min<double>(rad,4-rad)));
+			b=std::max<double>(0,std::min<double>(1.0,std::min<double>(rad,4-rad)));
 			base+=6*0.618033988749895;
 			if (base>=6) base-=6;
       g_palette[i].red=(int)(r*255+0.5);
@@ -293,7 +293,7 @@ void rightdownxy() {
 // if we're not on the top line
 					if (x==0) {
 						testval=VALMASKED(line[-g_workwidth])+(3<<8);
-						bestval=min(line[x],testval);
+						bestval=std::min(line[x],testval);
 
 						testval=VALMASKED(line[-g_workwidth+1])+(4<<8);
 						if (testval<bestval) bestval=testval;
@@ -353,7 +353,7 @@ void rightdownxy() {
 
 					if (lastpixel) {
 						testval=VALMASKED(line[-g_workwidth+x])+(3<<8);
-						bestval=min(line[x],testval);
+						bestval=std::min(line[x],testval);
 
 						testval=VALMASKED(line[-g_workwidth+x-1])+(4<<8);
 						if (testval<bestval) bestval=testval;
@@ -453,13 +453,13 @@ void leftupxy() {
 					} else
 					while (x>stop) {
 						testval=VALMASKED(line[x+1])+(3<<8);
-						line[x--]=min(testval,EDT_MAX);
+						line[x--]=std::min(testval,EDT_MAX);
 					}
 				} else {
 // if we're not on the bottom line
 					if (x==g_workwidth-1) {
 						testval=VALMASKED(line[+g_workwidth+x])+(3<<8);
-						bestval=min(EDT_MAX,testval);
+						bestval=std::min(EDT_MAX,testval);
 
 						testval=VALMASKED(line[+g_workwidth+x-1])+(4<<8);
 						if (testval<bestval) bestval=testval;
@@ -499,13 +499,13 @@ void leftupxy() {
 
 					if (lastpixel) {
 						testval=VALMASKED(line[+g_workwidth+x])+(3<<8);
-						bestval=min(EDT_MAX,testval);
+						bestval=std::min(EDT_MAX,testval);
 
 						testval=VALMASKED(line[+g_workwidth+x+1])+(4<<8);
-						bestval=min(bestval,testval);
+						bestval=std::min(bestval,testval);
 
 						testval=VALMASKED(line[x+1])+(3<<8);
-						bestval=min(bestval,testval);
+						bestval=std::min(bestval,testval);
 
 						line[x--]=bestval;
 
@@ -523,6 +523,7 @@ void leftupxy() {
 }
 
 void simple_seam() {
+
 	int i;
 	int x,y;
 	int p=0;

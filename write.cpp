@@ -1,3 +1,9 @@
+#include "globals.h"
+#include "functions.h"
+#include "defines.h"
+
+#include <algorithm>
+
 void jpeg_out() {
 	int x,y;
 	int xp;
@@ -153,10 +159,10 @@ void tiff_out() {
 
   strips=(int)((g_workheight+rowsperstrip-1)/rowsperstrip);
 	remaining=g_workheight;
-
+	
 	for (s=0; s<strips; s++) {
-		rows=min(remaining,rowsperstrip);
-    strip_p=0;
+		rows=std::min(remaining,rowsperstrip);
+		strip_p=0;
 		for (stripy=0; stripy<rows; stripy++) {
 			if (g_nomask) {
 				if (g_workbpp==8) {
@@ -188,7 +194,7 @@ void tiff_out() {
 				}
 
 				x=0;
-			  while (x<g_workwidth) {
+				while (x<g_workwidth) {
 					m=MASKOFF;
 					mincount=g_workwidth-x;
 					for (i=0; i<g_numimages; i++) {
@@ -232,38 +238,38 @@ void tiff_out() {
 						strip_p+=mincount<<2;
 						p+=mincount;
 					}
-/*
-				if (m==MASKON || g_nomask) {
-					if (g_workbpp==8) {
-						for (j=0; j<mincount; j++) {
-							((uint8*)strip)[strip_p++]=((uint8**)g_out_channels)[0][p];
-							((uint8*)strip)[strip_p++]=((uint8**)g_out_channels)[1][p];
-							((uint8*)strip)[strip_p++]=((uint8**)g_out_channels)[2][p];
-							if (!g_nomask) ((uint8*)strip)[strip_p++]=0xff;
-							p++;
+					/*
+					if (m==MASKON || g_nomask) {
+						if (g_workbpp==8) {
+							for (j=0; j<mincount; j++) {
+								((uint8*)strip)[strip_p++]=((uint8**)g_out_channels)[0][p];
+								((uint8*)strip)[strip_p++]=((uint8**)g_out_channels)[1][p];
+								((uint8*)strip)[strip_p++]=((uint8**)g_out_channels)[2][p];
+								if (!g_nomask) ((uint8*)strip)[strip_p++]=0xff;
+								p++;
+							}
+						} else {
+							for (j=0; j<mincount; j++) {
+								((uint16*)strip)[strip_p++]=((uint16**)g_out_channels)[0][p];
+								((uint16*)strip)[strip_p++]=((uint16**)g_out_channels)[1][p];
+								((uint16*)strip)[strip_p++]=((uint16**)g_out_channels)[2][p];
+								if (!g_nomask) ((uint16*)strip)[strip_p++]=0xffff;
+								p++;
+							}
 						}
 					} else {
-						for (j=0; j<mincount; j++) {
-							((uint16*)strip)[strip_p++]=((uint16**)g_out_channels)[0][p];
-							((uint16*)strip)[strip_p++]=((uint16**)g_out_channels)[1][p];
-							((uint16*)strip)[strip_p++]=((uint16**)g_out_channels)[2][p];
-							if (!g_nomask) ((uint16*)strip)[strip_p++]=0xffff;
-							p++;
+						if (g_workbpp==8) {
+							if (g_nomask) blank=mincount*3; else blank=mincount<<2;
+							memset(&((uint8*)strip)[strip_p],0,blank);
+							strip_p+=mincount<<2;
+						} else {
+							if (g_nomask) blank=mincount*6; else blank=mincount<<3;
+							memset(&((uint16*)strip)[strip_p],0,blank);
+							strip_p+=mincount<<2;
 						}
+						p+=mincount;
 					}
-				} else {
-					if (g_workbpp==8) {
-						if (g_nomask) blank=mincount*3; else blank=mincount<<2;
-						memset(&((uint8*)strip)[strip_p],0,blank);
-						strip_p+=mincount<<2;
-					} else {
-						if (g_nomask) blank=mincount*6; else blank=mincount<<3;
-						memset(&((uint16*)strip)[strip_p],0,blank);
-						strip_p+=mincount<<2;
-					}
-					p+=mincount;
-				}
-*/
+					*/
 
 					for (i=0; i<g_numimages; i++) maskcount[i]-=mincount;
 					x+=mincount;
@@ -271,8 +277,7 @@ void tiff_out() {
 			}
 			y++;
 		}
-    TIFFWriteEncodedStrip(g_tiff,s,strip,rows*mul);
-
+		TIFFWriteEncodedStrip(g_tiff,s,strip,rows*mul);
 		remaining-=rows;
 	}
 

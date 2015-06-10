@@ -1,0 +1,81 @@
+#-----------config-------------
+PROJ_FOLDER = ~/hg/diy-streetview/src
+SDK_FOLDER = ~/sdk
+TMP_FOLDER = ./tmp
+BIN_FOLDER = ./bin
+
+DEFINES = -DUSE_PROFILER
+#------------------------------
+
+#-----------platform------------
+CC = g++
+CCFLAGS = -O3
+CCFLAGS += -std=c++11
+CCFLAGS += -msse2
+
+LINK = g++
+
+#for MSVC last space in include paths in quotes is REALLY necessary
+INCLUDES = -I/usr/local/include
+#opencv
+LIBS += -L/usr/local/lib
+LIBS += -lopencv_core
+#other libs
+LIBS += -L/usr/local/Cellar/libpng/1.6.17/lib 
+LIBS += -ltiff -ltiffxx -ljpeg -lpng
+
+#-----------targets------------
+MAIN_APP = $(BIN_FOLDER)/multiblend
+
+APPLICATIONS = $(MAIN_APP)
+#------------------------------
+
+SOURCES = multiblend.cpp
+SOURCES += globals.cpp
+SOURCES += functions.cpp
+SOURCES += structs.cpp
+SOURCES += geotiff.cpp
+SOURCES += loadimages.cpp
+SOURCES += seaming.cpp
+SOURCES += maskpyramids.cpp
+SOURCES += blending.cpp
+SOURCES += write.cpp
+SOURCES += pseudowrap.cpp
+SOURCES += go.cpp
+SOURCES += profiler.cpp
+
+OBJECTS  = $(TMP_FOLDER)/multiblend.o
+OBJECTS += $(TMP_FOLDER)/globals.o
+OBJECTS += $(TMP_FOLDER)/functions.o
+OBJECTS += $(TMP_FOLDER)/structs.o
+OBJECTS += $(TMP_FOLDER)/geotiff.o
+OBJECTS += $(TMP_FOLDER)/loadimages.o
+OBJECTS += $(TMP_FOLDER)/seaming.o
+OBJECTS += $(TMP_FOLDER)/maskpyramids.o
+OBJECTS += $(TMP_FOLDER)/blending.o
+OBJECTS += $(TMP_FOLDER)/write.o
+OBJECTS += $(TMP_FOLDER)/pseudowrap.o
+OBJECTS += $(TMP_FOLDER)/go.o
+OBJECTS += $(TMP_FOLDER)/profiler.o
+
+all: dirs $(APPLICATIONS)
+
+#objects to binaries
+$(MAIN_APP) : $(OBJECTS)
+	$(LINK) $(OBJECTS) -o $@ $(LDFLAGS) $(LIBS)
+
+#sources to objects
+$(TMP_FOLDER)/%.o: %.cpp
+	$(CC) $(INCLUDES) $(DEFINES) $(CCFLAGS) -c $^ -o $@
+
+dirs:
+	mkdir -p $(TMP_FOLDER)
+	mkdir -p $(BIN_FOLDER)
+
+clean:
+	rm $(TMP_FOLDER)/*.o
+	rm $(APPLICATIONS)
+
+distclean:
+	rm $(TMP_FOLDER)/*.o
+	rm $(APPLICATIONS)

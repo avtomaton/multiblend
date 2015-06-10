@@ -1,4 +1,7 @@
+#include "globals.h"
+
 void pseudowrap_split() {
+	printf("pseudowrap_split\n");
 	int c;
 	int y;
 	int spread;

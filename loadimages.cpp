@@ -1,4 +1,9 @@
-#define I g_images[i]
+#include "structs.h"
+#include "globals.h"
+#include "functions.h"
+#include "defines.h"
+
+#include <algorithm>
 
 void trim8(void* bitmap, uint32 w, uint32 h, int bpp, int* top, int* left, int* bottom, int* right) {
   size_t p;
@@ -208,11 +213,11 @@ void extract16(struct_image* image, void* bitmap) {
 
   image->binary_mask.data=(uint32*)malloc(mp<<2);
   temp=mp;
-
 	memcpy(image->binary_mask.data,bitmap,mp<<2);
 }
 
 void extract(struct_image* image, void* bitmap) {
+
   if (image->bpp==8) extract8(image, bitmap); else extract16(image, bitmap);
 }
 
@@ -748,10 +753,11 @@ void inpaint16(struct_image* image, uint32* edt) {
 }
 
 void inpaint(struct_image* image, uint32* edt) {
-	if (image->bpp==8) inpaint8(image,edt); else inpaint16(image,edt);
+  if (image->bpp==8) inpaint8(image,edt); else inpaint16(image,edt);
 }
 
 void tighten() {
+
   int i;
 	int max_right=0,max_bottom=0;
 
@@ -759,8 +765,8 @@ void tighten() {
   g_min_top=0x7fffffff;
 
   for (i=0; i<g_numimages; i++) {
-    g_min_left=min(g_min_left,g_images[i].xpos);
-    g_min_top=min(g_min_top,g_images[i].ypos);
+    g_min_left=std::min(g_min_left,g_images[i].xpos);
+    g_min_top=std::min(g_min_top,g_images[i].ypos);
   }
 
   for (i=0; i<g_numimages; i++) {
@@ -769,8 +775,8 @@ void tighten() {
   }
 
 	for (i=0; i<g_numimages; i++) {
-		max_right=max(max_right,g_images[i].xpos+g_images[i].width);
-		max_bottom=max(max_bottom,g_images[i].ypos+g_images[i].height);
+		max_right=std::max(max_right,g_images[i].xpos+g_images[i].width);
+		max_bottom=std::max(max_bottom,g_images[i].ypos+g_images[i].height);
 	}
 
 	g_workwidth=max_right;
@@ -797,17 +803,18 @@ void load_images(char** argv, int argc) {
   uint16 compression;
 	void* untrimmed;
 	void** channels;
-	char* temp_path;
-
+	#ifdef WIN32
+	char* temp_path = NULL;
+	#endif
 	g_numimages=argc;
 
   g_images=(struct_image*)malloc(g_numimages*sizeof(struct_image));
 
 	for (i=0; i<g_numimages; i++) {
+    I.reset();
 		I.channels=(struct_channel*)malloc(g_numchannels*sizeof(struct_channel));
 		for (c=0; c<g_numchannels; c++) I.channels[c].f=0;
 	}
-
 /*************************************************************************
  * open images, get information
  *************************************************************************/
@@ -816,13 +823,13 @@ void load_images(char** argv, int argc) {
 	output(1,"...\n");
 
   for (i=0; i<g_numimages; i++) {
-#ifdef WIN32
-    strcpy_s(g_images[i].filename,256,argv[i]);
-#else
-    strncpy(g_images[i].filename,argv[i],256);
-#endif
+    #ifdef WIN32
+      strcpy_s(g_images[i].filename,256,argv[i]);
+    #else
+      strncpy(g_images[i].filename,argv[i],256);
+    #endif
 
-// open image
+    // open image
 		I.tiff=TIFFOpen(I.filename, "r");
 		if (!I.tiff) die("couldn't open file!");
 
@@ -841,8 +848,8 @@ void load_images(char** argv, int argc) {
 		if (spp!=4) die("can't handle <>4spp!");
 
 		if (i>0 && I.bpp!=g_images[i-1].bpp) die ("can't handle a mix of 8bpp and 16bpp images!");
-
-	// read geotiff offsets
+    
+    // read geotiff offsets
 		g_images[i].geotiff.set=false;
 		if (tiff_xpos==-1 && tiff_ypos==-1) {
 			// try to read geotiff tags
@@ -869,8 +876,8 @@ void load_images(char** argv, int argc) {
 			minstripcount=0;
 			for (s=0; s<(int)TIFFNumberOfStrips(I.tiff)-1; s++) {
 				temp=TIFFRawStripSize(I.tiff,s);
-//				printf("%d: %d\n",s,temp);
-//				if ((s&63)==0) getchar();
+     		//printf("%d: %d\n",s,temp);
+  			//if ((s&63)==0) getchar();
 				if (temp<minstripsize) { minstripsize=temp; minstripcount=1; }
 				else if (temp==minstripsize) minstripcount++;
 			}
@@ -911,23 +918,23 @@ void load_images(char** argv, int argc) {
 			if (!channels[c]) die("not enough memory for cache channel %d",c);
 		}
 
-#ifdef WIN32
-		temp_path=(char*)malloc(MAX_PATH);
-		GetTempPath(MAX_PATH,temp_path);
-#endif
+    #ifdef WIN32
+  		temp_path=(char*)malloc(MAX_PATH);
+	   	GetTempPath(MAX_PATH,temp_path);
+    #endif
 	}
-
 /*************************************************************************
  * image processing loop
  *************************************************************************/
-	for (i=0; i<g_numimages; i++) {
+	
+  for (i=0; i<g_numimages; i++) {
     output(1,"processing %s...\n",I.filename);
 
 		char* pointer=(char*)untrimmed;
-		for (s=I.first_strip; s<=I.last_strip; s++) pointer+=TIFFReadEncodedStrip(I.tiff, s, pointer, -1);
+    for (s=I.first_strip; s<=I.last_strip; s++) pointer+=TIFFReadEncodedStrip(I.tiff, s, pointer, -1);
 
-		g_workwidth=max(g_workwidth,(int)(I.xpos+I.tiff_width));
-    g_workheight=max(g_workheight,(int)(I.ypos+I.tiff_height));
+		g_workwidth=std::max(g_workwidth,(int)(I.xpos+I.tiff_width));
+    g_workheight=std::max(g_workheight,(int)(I.ypos+I.tiff_height));
 
 		trim(untrimmed,I.tiff_width,I.tiff_u_height,I.bpp,&I.top,&I.left,&bottom,&right);
 
@@ -935,36 +942,37 @@ void load_images(char** argv, int argc) {
     I.width=right-I.left+1; I.height=bottom-I.top+1;
 
 		temp_t=(I.width*I.height)<<(I.bpp>>4);
-		channel_bytes_max=max(channel_bytes_max, temp_t);
+		channel_bytes_max=std::max(channel_bytes_max, temp_t);
 
 		if (g_caching) {
+      printf("g_caching == true\n");
 			for (c=0; c<g_numchannels; c++) {
 				I.channels[c].data=channels[c];
-#ifdef WIN32
-				I.channels[c].filename=(char*)malloc(MAX_PATH);
-				GetTempFileName(temp_path,"mb",0,I.channels[c].filename);
-				if (fopen_s(&I.channels[c].f,I.channels[c].filename,"wb")) die("couldn't open channel file");
-#else
-				I.channels[c].f=tmpfile();
-				if (!I.channels[c].f) die("couldn't open channel file");
-#endif
+        #ifdef WIN32
+          I.channels[c].filename=(char*)malloc(MAX_PATH);
+			   	GetTempFileName(temp_path,"mb",0,I.channels[c].filename);
+				  if (fopen_s(&I.channels[c].f,I.channels[c].filename,"wb")) die("couldn't open channel file");
+        #else
+				  I.channels[c].f=tmpfile();
+				  if (!I.channels[c].f) die("couldn't open channel file");
+        #endif
 			}
 		} else {
 			for (c=0; c<g_numchannels; c++) if (!(I.channels[c].data=(void*)malloc(temp_t))) die("not enough memory for image channel");
-		}
+		}    
 
 		extract(&I, untrimmed);
 		inpaint(&I, (uint32*)untrimmed);
 
 		if (g_caching) for (c=0; c<g_numchannels; c++) {
 			fwrite(I.channels[c].data, temp_t, 1, I.channels[c].f);
-#ifdef WIN32
-			fclose(I.channels[c].f);
-			fopen_s(&I.channels[c].f,I.channels[c].filename,"rb"); // reopen required under Windows
-#endif
+      #ifdef WIN32
+        fclose(I.channels[c].f);
+		  	fopen_s(&I.channels[c].f,I.channels[c].filename,"rb"); // reopen required under Windows
+      #endif
 		}
 	}
-
+  
 	if (g_caching) {
 		for (c=0; c<g_numchannels; c++) free(channels[c]);
 		g_cache_bytes=channel_bytes_max;

@@ -1,5 +1,14 @@
 #define ACCURACY 5 // don't change this
 
+
+#include "structs.h"
+#include "globals.h"
+#include "functions.h"
+#include "defines.h"
+
+#include <algorithm>
+#include <emmintrin.h>
+
 void save_out_pyramid(int c, bool collapsed) {
 	int l;
 	int p;
@@ -10,33 +19,33 @@ void save_out_pyramid(int c, bool collapsed) {
 	int png_height=0;
 	FILE* f;
 
-#ifdef WIN32
-  sprintf_s(filename,"out_pyramid%03d.png",c);
-#else
-  sprintf(filename,"out_pyramid%03d.png",c);
-#endif
+	#ifdef WIN32
+		sprintf_s(filename,"out_pyramid%03d.png",c);
+	#else
+		sprintf(filename,"out_pyramid%03d.png",c);
+	#endif
 
 	for (l=0; l<g_levels; l++) png_height+=g_output_pyramid[l].h;
 
-  png_ptr=png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-  if (!png_ptr) {
-    output(0,"WARNING: PNG create failed\n");
-    return;
-  }
+	png_ptr=png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	if (!png_ptr) {
+		output(0,"WARNING: PNG create failed\n");
+		return;
+	}
 
 	info_ptr=png_create_info_struct(png_ptr);
-  if (!info_ptr) {
-    png_destroy_write_struct(&png_ptr,(png_infopp)NULL);
-    return;
-  }
+	if (!info_ptr) {
+		png_destroy_write_struct(&png_ptr,(png_infopp)NULL);
+		return;
+	}
 
 	fopen_s(&f, filename, "wb");
 
 	png_init_io(png_ptr, f);
 
-  png_set_IHDR(png_ptr,info_ptr,g_output_pyramid[0].w,png_height,8,PNG_COLOR_TYPE_GRAY,PNG_INTERLACE_NONE,PNG_COMPRESSION_TYPE_DEFAULT,PNG_FILTER_TYPE_DEFAULT);
+	png_set_IHDR(png_ptr,info_ptr,g_output_pyramid[0].w,png_height,8,PNG_COLOR_TYPE_GRAY,PNG_INTERLACE_NONE,PNG_COMPRESSION_TYPE_DEFAULT,PNG_FILTER_TYPE_DEFAULT);
 
-  png_write_info(png_ptr, info_ptr);
+	png_write_info(png_ptr, info_ptr);
 
 	for (l=0; l<g_levels; l++) {
 		p=0;
@@ -44,7 +53,7 @@ void save_out_pyramid(int c, bool collapsed) {
 			for (x=0; x<g_output_pyramid[l].w; x++) {
 				if (l==g_levels-1 || collapsed) {
 					if (g_workbpp==8)
-						((uint8*)g_line0)[x]=max(0,((short*)g_output_pyramid[l].data)[p++]>>ACCURACY); //ACCURACY=&((short*)out_pyramid)[g_output_pyramid[l].offset];
+						((uint8*)g_line0)[x]=std::max(0,((short*)g_output_pyramid[l].data)[p++]>>ACCURACY); //ACCURACY=&((short*)out_pyramid)[g_output_pyramid[l].offset];
 					else
 						((uint8*)g_line0)[x]=((int*)g_output_pyramid[l].data)[p++]>>16; //ACCURACY=&((short*)out_pyramid)[g_output_pyramid[l].offset];
 				} else {
@@ -62,7 +71,7 @@ void save_out_pyramid(int c, bool collapsed) {
 		}
 	}
 
-  fclose(f);
+	fclose(f);
 }
 
 void hshrink(struct_level* upper, struct_level* lower) {
@@ -70,24 +79,24 @@ void hshrink(struct_level* upper, struct_level* lower) {
 	int tmp1,tmp2;
 	size_t up=0;
 	int* tmp=(int*)g_temp;
-  int x_extra0=(upper->x0>>1)-lower->x0;
-  int xlim=(upper->x1>>1)-lower->x0; // xpos on lower when we need to wrap last pixel
+	int x_extra0=(upper->x0>>1)-lower->x0;
+	int xlim=(upper->x1>>1)-lower->x0; // xpos on lower when we need to wrap last pixel
 	int ushift=upper->pitch-upper->w;
 
 	for (y=0; y<upper->h; y++) {
-    x=0;
+		x=0;
 		if (g_workbpp==8) {
-      tmp1=((short*)upper->data)[up++];
-      tmp2=((short*)upper->data)[up++];
+			tmp1=((short*)upper->data)[up++];
+			tmp2=((short*)upper->data)[up++];
 		} else {
-      tmp1=((int*)upper->data)[up++];
-      tmp2=((int*)upper->data)[up++];
+			tmp1=((int*)upper->data)[up++];
+			tmp2=((int*)upper->data)[up++];
 		}
 		tmp1+=tmp1<<1;
 		tmp1=tmp1+tmp2;
-    while (x<=x_extra0) {
-      tmp[x++]=tmp1; // was +tmp2
-    }
+		while (x<=x_extra0) {
+			tmp[x++]=tmp1; // was +tmp2
+		}
 
 		if (g_workbpp==8) {
 			while (x<xlim) {
@@ -95,26 +104,26 @@ void hshrink(struct_level* upper, struct_level* lower) {
 				tmp2=((short*)upper->data)[up++];
 				tmp[x++]=(tmp1+tmp2);
 			}
-      tmp1=((short*)upper->data)[up++];
+			tmp1=((short*)upper->data)[up++];
 		} else {
 			while (x<xlim) {
 				tmp1=tmp2+(((int*)upper->data)[up++]<<1);
 				tmp2=((int*)upper->data)[up++];
 				tmp[x++]=(tmp1+tmp2);
 			}
-      tmp1=((int*)upper->data)[up++];
+			tmp1=((int*)upper->data)[up++];
 		}
 
-    tmp1+=tmp1<<1;
+		tmp1+=tmp1<<1;
 		tmp1+=tmp2;
 
-    while (x<lower->pitch) {
-      tmp[x++]=tmp1;
-    }
+		while (x<lower->pitch) {
+			tmp[x++]=tmp1;
+		}
 
 		up+=ushift;
-    tmp+=lower->pitch;
-  }
+		tmp+=lower->pitch;
+	}
 }
 
 void vshrink(struct_level* upper, struct_level* lower) {
@@ -122,8 +131,8 @@ void vshrink(struct_level* upper, struct_level* lower) {
 	int x,y;
 	size_t lp=0;
 	int* tmp=(int*)g_temp;
-  int y_extra0=(upper->y0>>1)-lower->y0;
-  int ylim=(upper->y1>>1)-lower->y0; // ypos on lower when we need to duplicate last rows
+	int y_extra0=(upper->y0>>1)-lower->y0;
+	int ylim=(upper->y1>>1)-lower->y0; // ypos on lower when we need to duplicate last rows
 	int lps;
 	__m128i eight;
 	__m128i sse_tmp1;
@@ -138,8 +147,8 @@ void vshrink(struct_level* upper, struct_level* lower) {
 	if (g_workbpp==8) {
 		for (x=0; x<lower->pitch; x++) ((short*)lower->data)[lp++]=(tmp[x]+(tmp[x]<<1)+tmp[x+lower->pitch]+8)>>4;
 		for (y=1; y<=y_extra0; y++) { memcpy(&((short*)lower->data)[lp],lower->data,lower->pitch<<1); lp+=lower->pitch; }
-  } else {
-    for (x=0; x<lower->pitch; x++) ((int*)lower->data)[lp++]=(tmp[x]+(tmp[x]<<1)+tmp[x+lower->pitch]+8)>>4;
+	} else {
+		for (x=0; x<lower->pitch; x++) ((int*)lower->data)[lp++]=(tmp[x]+(tmp[x]<<1)+tmp[x+lower->pitch]+8)>>4;
 		for (y=1; y<=y_extra0; y++) { memcpy(&((int*)lower->data)[lp],lower->data,lower->pitch<<2); lp+=lower->pitch; }
 	}
 
@@ -206,60 +215,60 @@ void vshrink(struct_level* upper, struct_level* lower) {
 }
 
 __inline void inflate_line_short(short *input, short *output, int w) {
-  int x=0,ix=0,p,n;
+	int x=0,ix=0,p,n;
 
-  p=input[ix++];
-  output[x++]=p;
+	p=input[ix++];
+	output[x++]=p;
 
-  while (x<w-1) {
-    n=input[ix++];
-    output[x++]=(p+n+1)>>1;
-    output[x++]=n;
-    p=n;
-  }
+	while (x<w-1) {
+		n=input[ix++];
+		output[x++]=(p+n+1)>>1;
+		output[x++]=n;
+		p=n;
+	}
 
 	if (!(w&1)) { // added for the only possible "even" case - the output pyramid
-    n=input[ix++];
-    output[x++]=(p+n+1)>>1;
+		n=input[ix++];
+		output[x++]=(p+n+1)>>1;
 		w++;
 	} else {
 		while (x<w) { // all other cases have odd width
 			output[x]=output[x-1];
 			x++;
 		}
-  }
+	}
 }
 
 __inline void inflate_line_int(int *input, int *output, int w) {
-  int x=0,ix=0,p,n;
+	int x=0,ix=0,p,n;
 
-  p=input[ix++];
-  output[x++]=p;
+	p=input[ix++];
+	output[x++]=p;
 
-  while (x<w-1) {
-    n=input[ix++];
-    output[x++]=(p+n+1)>>1;
-    output[x++]=n;
-    p=n;
-  }
+	while (x<w-1) {
+		n=input[ix++];
+		output[x++]=(p+n+1)>>1;
+		output[x++]=n;
+		p=n;
+	}
 
-  while (x<w) {
-    output[x]=output[x-1];
+	while (x<w) {
+		output[x]=output[x-1];
 		x++;
-  }
+	}
 }
 
 void hps(struct_level* upper, struct_level *lower) {
 	int i;
-  int x,y;
-  int x_extra0=(upper->x0>>1)-lower->x0;
-  int y_extra0=(upper->y0>>1)-lower->y0;
-  int ylim=(upper->h+1)>>1;
+	int x,y;
+	int x_extra0=(upper->x0>>1)-lower->x0;
+	int y_extra0=(upper->y0>>1)-lower->y0;
+	int ylim=(upper->h+1)>>1;
 	int sse_pitch;
 	int lp;
 	__m128i sse_mix;
 	__m128i one;
-  void* swap;
+	void* swap;
 
 	if (g_workbpp==8) {
 		sse_pitch=upper->pitch>>3;
@@ -270,17 +279,17 @@ void hps(struct_level* upper, struct_level *lower) {
 	}
 
 	lp=y_extra0*lower->pitch+x_extra0;
-  __m128i* upper_p=((__m128i*)upper->data);
+	__m128i* upper_p=((__m128i*)upper->data);
 
 	if (g_workbpp==8) inflate_line_short(&((short*)lower->data)[lp],(short*)g_line0,upper->pitch);
-  else	            inflate_line_int(&((int*)lower->data)[lp],(int*)g_line0,upper->pitch);
-  lp+=lower->pitch;
+	else	            inflate_line_int(&((int*)lower->data)[lp],(int*)g_line0,upper->pitch);
+	lp+=lower->pitch;
 
 	if (g_workbpp==8) for (x=0; x<sse_pitch; x++) upper_p[x]=_mm_sub_epi16(upper_p[x],((__m128i*)g_line0)[x]);
 	else            	for (x=0; x<sse_pitch; x++) upper_p[x]=_mm_sub_epi32(upper_p[x],((__m128i*)g_line0)[x]);
 	upper_p+=sse_pitch;
 
-  for (y=1; y<ylim; y++) {
+	for (y=1; y<ylim; y++) {
 		if (g_workbpp==8) {
 			inflate_line_short(&((short*)lower->data)[lp],(short*)g_line1,upper->pitch);
 			for (x=0; x<sse_pitch; x++) {
@@ -304,16 +313,16 @@ void hps(struct_level* upper, struct_level *lower) {
 
 		if (g_workbpp==8) for (x=0; x<sse_pitch; x++) upper_p[x]=_mm_sub_epi16(upper_p[x],((__m128i*)g_line1)[x]);
 		else          		for (x=0; x<sse_pitch; x++) upper_p[x]=_mm_sub_epi32(upper_p[x],((__m128i*)g_line1)[x]);
-  	upper_p+=sse_pitch;
+		upper_p+=sse_pitch;
 
 		swap=g_line0;
-    g_line0=g_line1;
-    g_line1=swap;
-  }
+		g_line0=g_line1;
+		g_line1=swap;
+	}
 }
 
 void shrink_hps(struct_level* upper, struct_level* lower) {
-  hshrink(upper,lower);
+	hshrink(upper,lower);
 	vshrink(upper,lower);
 	hps(upper,lower);
 }
@@ -338,18 +347,18 @@ void copy_channel(int i, int c) {
 
 	if (g_caching) {
 		rewind(I.channels[c].f);
-		fread(g_temp, (I.width*I.height)<<(I.bpp>>4), 1, I.channels[c].f);
+		(g_temp, (I.width*I.height)<<(I.bpp>>4), 1, I.channels[c].f);
 		pixels=g_temp;
 	} else {
-  	pixels=g_images[i].channels[c].data;
+		pixels=g_images[i].channels[c].data;
 	}
 
 	for (y=0; y<top->h-y_extra1; y++) {
 		switch(mode) {
-  		case 0:
+			case 0:
 				a=((uint8*)pixels)[ip++]<<ACCURACY;
 				for (x=0; x<=x_extra0; x++) ((short*)top->data)[op++]=a;
-  			ipt=ip+xlim-x;
+				ipt=ip+xlim-x;
 				while (ip<ipt) {
 					a=((uint8*)pixels)[ip++]<<ACCURACY;
 					((short*)top->data)[op++]=a;
@@ -359,7 +368,7 @@ void copy_channel(int i, int c) {
 			case 1:
 				a=((uint16*)pixels)[ip++]>>(8-ACCURACY);
 				for (x=0; x<=x_extra0; x++) ((short*)top->data)[op++]=a;
-  			ipt=ip+xlim-x;
+				ipt=ip+xlim-x;
 				while (ip<ipt) {
 					a=((uint16*)pixels)[ip++]>>(8-ACCURACY);
 					((short*)top->data)[op++]=a;
@@ -370,7 +379,7 @@ void copy_channel(int i, int c) {
 				a=((uint8*)pixels)[ip++];
 				a=a<<16|a<<8;
 				for (x=0; x<=x_extra0; x++) ((int*)top->data)[op++]=a;
-  			ipt=ip+xlim-x;
+				ipt=ip+xlim-x;
 				while (ip<ipt) {
 					a=((uint8*)pixels)[ip++];
 					a=a<<16|a<<8;
@@ -381,7 +390,7 @@ void copy_channel(int i, int c) {
 			case 3:
 				a=((uint16*)pixels)[ip++]<<8;
 				for (x=0; x<=x_extra0; x++) ((int*)top->data)[op++]=a;
-  			ipt=ip+xlim-x;
+				ipt=ip+xlim-x;
 				while (ip<ipt) {
 					a=((uint16*)pixels)[ip++]<<8;
 					((int*)top->data)[op++]=a;
@@ -389,10 +398,9 @@ void copy_channel(int i, int c) {
 				for (x=xlim; x<top->pitch; x++) ((int*)top->data)[op++]=a;
 				break;
 		}
-
 		if (y==0) {
 			switch(mode&2) {
-  			case 0:
+				case 0:
 					for (; y<y_extra0; y++) {
 						memcpy(&((short*)top->data)[op],&((short*)top->data)[op-top->pitch],top->pitch<<1);
 						op+=top->pitch;
@@ -407,15 +415,14 @@ void copy_channel(int i, int c) {
 			}
 		}
 	}
-
 	switch(mode&2) {
-  	case 0:
+		case 0:
 			for (; y<top->h; y++) {
 				memcpy(&((short*)top->data)[op],&((short*)top->data)[op-top->pitch],top->pitch<<1);
 				op+=top->pitch;
 			}
 			break;
-  	case 2:
+		case 2:
 			for (; y<top->h; y++) {
 				memcpy(&((int*)top->data)[op],&((int*)top->data)[op-top->pitch],top->pitch<<2);
 				op+=top->pitch;
@@ -423,14 +430,17 @@ void copy_channel(int i, int c) {
 			break;
 	}
 
-	if (!g_caching) free(pixels);
+	if (!g_caching) 
+	{
+		free(pixels);
+	}
 }
 
 #define NEXT_MASK { \
 	pixel.f=*mask++; \
- 	if (pixel.i<0) { \
-  	count=-pixel.i; \
-  	pixel.f=*mask++; \
+	if (pixel.i<0) { \
+		count=-pixel.i; \
+		pixel.f=*mask++; \
 	} else count=1; \
 }
 
@@ -439,12 +449,12 @@ void mask_into_output(struct_level* input, float* mask, struct_level* output, bo
 	void* input_line;
 	int count;
 	int limcount;
-  int x_extra,y_extra;
+	int x_extra,y_extra;
 	void* out_p=((void*)output->data);
-	int xlim=min(output->w,input->x0+input->w);
-	int ylim=min(output->h,input->y0+input->h);
+	int xlim=std::min(output->w,input->x0+input->w);
+	int ylim=std::min(output->h,input->y0+input->h);
 	int bpp_shift=g_workbpp>>3;
-  intfloat pixel;
+	intfloat pixel;
 
 	if (first) memset(output->data,0,(output->pitch*output->h)<<bpp_shift);
 
@@ -465,7 +475,7 @@ void mask_into_output(struct_level* input, float* mask, struct_level* output, bo
 	}
 
 // advance mask pointer to first active line
-  x=output->w*y_extra;
+	x=output->w*y_extra;
 	while (x>0) {
 		NEXT_MASK;
 		x-=count;
@@ -497,16 +507,16 @@ void mask_into_output(struct_level* input, float* mask, struct_level* output, bo
 				limcount=xlim-x;
 				if (limcount>count) limcount=count;
 				if (g_workbpp==8)
-  				memcpy(&((short*)out_p)[x],&((short*)input_line)[x],limcount<<bpp_shift);
+					memcpy(&((short*)out_p)[x],&((short*)input_line)[x],limcount<<bpp_shift);
 				else
-  				memcpy(&((int*)out_p)[x],&((int*)input_line)[x],limcount<<bpp_shift);
+					memcpy(&((int*)out_p)[x],&((int*)input_line)[x],limcount<<bpp_shift);
 				x+=count;
 				count=0;
 			} else {
 				if (g_workbpp==8)
-  				((short*)out_p)[x]+=(int)(((int16*)input_line)[x]*pixel.f+0.5);
+					((short*)out_p)[x]+=(int)(((int16*)input_line)[x]*pixel.f+0.5);
 				else
-  				((int*)out_p)[x]+=(int)(((int*)input_line)[x]*pixel.f+0.5);
+					((int*)out_p)[x]+=(int)(((int*)input_line)[x]*pixel.f+0.5);
 				x++;
 				count--;
 			}
@@ -516,7 +526,7 @@ void mask_into_output(struct_level* input, float* mask, struct_level* output, bo
 		x+=count;
 		while (x<output->w) {
 			NEXT_MASK;
-      x+=count;
+			x+=count;
 		}
 
 		out_p=(void*)&((char*)out_p)[output->pitch<<bpp_shift];
@@ -526,12 +536,12 @@ void mask_into_output(struct_level* input, float* mask, struct_level* output, bo
 
 void collapse(struct_level* lower, struct_level* upper) {
 	int i;
-  int x,y;
+	int x,y;
 	int sse_pitch;
 	int lp;
 	__m128i sse_mix;
 	__m128i one;
-  void* swap;
+	void* swap;
 	int y_extra=(lower->h*2-1)-upper->h;
 
 	if (g_workbpp==8) {
@@ -543,17 +553,17 @@ void collapse(struct_level* lower, struct_level* upper) {
 	}
 
 	lp=0; //y_extra0*lower->pitch+x_extra0;
-  __m128i* upper_p=((__m128i*)upper->data);
+	__m128i* upper_p=((__m128i*)upper->data);
 
 	if (g_workbpp==8)	inflate_line_short(&((short*)lower->data)[lp],(short*)g_line0,upper->pitch);
 	else            	inflate_line_int(&((int*)lower->data)[lp],(int*)g_line0,upper->pitch);
-  lp+=lower->pitch;
+	lp+=lower->pitch;
 
 	if (g_workbpp==8)	for (x=0; x<sse_pitch; x++) upper_p[x]=_mm_add_epi16(upper_p[x],((__m128i*)g_line0)[x]);
 	else            	for (x=0; x<sse_pitch; x++) upper_p[x]=_mm_add_epi32(upper_p[x],((__m128i*)g_line0)[x]);
 	upper_p+=sse_pitch;
 
-  for (y=1; y<lower->h; y++) {
+	for (y=1; y<lower->h; y++) {
 		if (g_workbpp==8) {
 			inflate_line_short(&((short*)lower->data)[lp],(short*)g_line1,upper->pitch);
 			lp+=lower->pitch;
@@ -579,12 +589,13 @@ void collapse(struct_level* lower, struct_level* upper) {
 
 		if (g_workbpp==8) for (x=0; x<sse_pitch; x++) upper_p[x]=_mm_add_epi16(upper_p[x],((__m128i*)g_line1)[x]);
 		else              for (x=0; x<sse_pitch; x++) upper_p[x]=_mm_add_epi32(upper_p[x],((__m128i*)g_line1)[x]);
-  	upper_p+=sse_pitch;
+		upper_p+=sse_pitch;
 
 		swap=g_line0;
-    g_line0=g_line1;
-    g_line1=swap;
-  }
+		g_line0=g_line1;
+		g_line1=swap;
+	}
+
 }
 
 void dither(struct_level* top, void* channel) {
@@ -597,7 +608,7 @@ void dither(struct_level* top, void* channel) {
 
 	if (g_workbpp==8) {
 		if (RAND_MAX==32767) for (i=0; i<1024; i++) g_dither[i]=rand()>>(15-ACCURACY);
-    else for (i=0; i<1024; i++) g_dither[i]=rand()>>(31-ACCURACY);
+		else for (i=0; i<1024; i++) g_dither[i]=rand()>>(31-ACCURACY);
 
 		for (y=0; y<g_workheight; y++) {
 			dith_off-=32;
@@ -605,22 +616,22 @@ void dither(struct_level* top, void* channel) {
 			for (x=0; x<g_workwidth; x++) {
 				q=(((short*)top->data)[dp+x]+g_dither[dith_off+(x&31)])>>ACCURACY;
 				if (q<0) q=0; else if (q>255) q=0xff;
-        ((uint8*)channel)[p++]=q;
+				((uint8*)channel)[p++]=q;
 			}
 
 			dp+=top->pitch;
 		}
 	} else {
-    if (RAND_MAX==32767) for (i=0; i<1024; i++) g_dither[i]=rand()>>7;
-    else for (i=0; i<1024; i++) g_dither[i]=rand()>>23;
+		if (RAND_MAX==32767) for (i=0; i<1024; i++) g_dither[i]=rand()>>7;
+		else for (i=0; i<1024; i++) g_dither[i]=rand()>>23;
 
 		for (y=0; y<g_workheight; y++) {
 			dith_off-=32;
 			if (dith_off<0) dith_off=992;
 			for (x=0; x<g_workwidth; x++) {
- 				q=(((int*)top->data)[dp+x]+g_dither[dith_off+(x&31)])>>8;
+				q=(((int*)top->data)[dp+x]+g_dither[dith_off+(x&31)])>>8;
 				if (q<0) q=0; else if (q>0xffff) q=0xffff;
-        ((uint16*)channel)[p++]=q;
+				((uint16*)channel)[p++]=q;
 			}
 
 			dp+=top->pitch;
@@ -647,7 +658,7 @@ void blend() {
 
 	output(1,"blending...\n");
 
-  if (g_workbpp==8) pitch_plus=7; else pitch_plus=3;
+	if (g_workbpp==8) pitch_plus=7; else pitch_plus=3;
 
 // dimension pyramid structs
 	msize=g_levels*sizeof(struct_level);
@@ -676,11 +687,11 @@ void blend() {
 			PY(i,l).h=PY(i,l).y1+1-PY(i,l).y0;
 			PY(i,l).pitch=(PY(i,l).w+pitch_plus)&(~pitch_plus);
 
-		  mem_image+=PY(i,l).pitch*PY(i,l).h;
+			mem_image+=PY(i,l).pitch*PY(i,l).h;
 		}
 
 		if (g_levels>1)
-      mem_temp=PY(i,0).h*PY(i,1).pitch;
+			mem_temp=PY(i,0).h*PY(i,1).pitch;
 		else
 			mem_temp=0;
 		if (mem_temp>mem_temp_max) mem_temp_max=mem_temp;
@@ -718,27 +729,27 @@ void blend() {
 	out_pyramid=_aligned_malloc(mem_out*size_of,16);
 	if (!out_pyramid) die("Couldn't allocate memory for output pyramid!");
 
-	mem_temp_max=max(mem_temp_max*sizeof(int),g_cache_bytes);
+	mem_temp_max=std::max(mem_temp_max*sizeof(int),g_cache_bytes);
 
 	if (mem_temp_max>0) {
-  	g_temp=_aligned_malloc(mem_temp_max,16); // was *sizeof(int)
-	  if (!g_temp) die("Couldn't allocate enough temporary memory!");
+		g_temp=_aligned_malloc(mem_temp_max,16); // was *sizeof(int)
+		if (!g_temp) die("Couldn't allocate enough temporary memory!");
 	}
 
 	for (i=0; i<g_numimages; i++) {
 		for (l=0; l<g_levels; l++) {
 			if (g_workbpp==8)
-  			PY(i,l).data=&((short*)image_pyramid)[PY(i,l).offset];
+				PY(i,l).data=&((short*)image_pyramid)[PY(i,l).offset];
 			else
-  			PY(i,l).data=&((int*)image_pyramid)[PY(i,l).offset];
+				PY(i,l).data=&((int*)image_pyramid)[PY(i,l).offset];
 		}
 	}
 
 	for (l=0; l<g_levels; l++) {
 		if (g_workbpp==8)
-  		g_output_pyramid[l].data=&((short*)out_pyramid)[g_output_pyramid[l].offset];
+			g_output_pyramid[l].data=&((short*)out_pyramid)[g_output_pyramid[l].offset];
 		else
-  		g_output_pyramid[l].data=&((int*)out_pyramid)[g_output_pyramid[l].offset];
+			g_output_pyramid[l].data=&((int*)out_pyramid)[g_output_pyramid[l].offset];
 	}
 
 	g_dither=(int*)_aligned_malloc(1024<<2,16);
@@ -753,23 +764,23 @@ void blend() {
 	g_out_channels=(void**)malloc(g_numchannels*sizeof(void*));
 
 	for (c=0; c<g_numchannels; c++) {
-  	for (i=0; i<g_numimages; i++) {
+		for (i=0; i<g_numimages; i++) {
 			timer.set();
 			copy_channel(i,c); // also frees channel when finished (unless input caching is on)
 			copy_time+=timer.read();
 
 			timer.set();
 			for (l=0; l<g_levels-1; l++) shrink_hps(&PY(i,l),&PY(i,l+1));
-      shrink_time+=timer.read();
+			shrink_time+=timer.read();
 
 			timer.set();
 			for (l=0; l<g_levels; l++) mask_into_output(&PY(i,l),g_images[i].masks[l],&g_output_pyramid[l],i==0);
 			mio_time+=timer.read();
 		}
 
-    if (g_save_out_pyramids) save_out_pyramid(c,false);
+		if (g_save_out_pyramids) save_out_pyramid(c,false);
 
-    timer.set();
+		timer.set();
 		for (l=g_levels-1; l>0; l--) collapse(&g_output_pyramid[l],&g_output_pyramid[l-1]);
 		collapse_time+=timer.read();
 
@@ -787,7 +798,7 @@ void blend() {
 		dither_time+=timer.read();
 	}
 
-  if (g_timing) {
+	if (g_timing) {
 		printf("\n");
 		report_time("copy",copy_time);
 		report_time("shrink",shrink_time);
