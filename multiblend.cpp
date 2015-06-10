@@ -60,6 +60,7 @@ void help() {
 }
 
 int main(int argc, char* argv[]) {
+	Proftimer proftimer(&profiler, "root");
   int i;
   int input_args;
 	int temp;
@@ -171,6 +172,8 @@ int main(int argc, char* argv[]) {
 		printf("\nPress Enter to end\n");
 		getchar();
 	}
+	proftimer.stop();
+	profiler.report();
 
 	return 0;
 }

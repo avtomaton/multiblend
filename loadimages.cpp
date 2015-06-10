@@ -98,6 +98,7 @@ void trim16(void* bitmap, uint32 w, uint32 h, int bpp, int* top, int* left, int*
 }
 
 void trim(void* bitmap, int w, int h, int bpp, int* top, int* left, int* bottom, int* right) {
+  Proftimer proftimer(&profiler, "trim");
   if (bpp==8) trim8(bitmap,w,h,bpp,top,left,bottom,right); else trim16(bitmap,w,h,bpp,top,left,bottom,right);
 }
 
@@ -153,6 +154,7 @@ void extract8(struct_image* image, void* bitmap) {
   image->binary_mask.data=(uint32*)malloc(mp<<2);
   temp=mp;
 
+  Proftimer proftimer_extract_memcpy(&profiler, "extract_memcpy");
 	memcpy(image->binary_mask.data,bitmap,mp<<2);
 }
 
@@ -213,10 +215,12 @@ void extract16(struct_image* image, void* bitmap) {
 
   image->binary_mask.data=(uint32*)malloc(mp<<2);
   temp=mp;
+  Proftimer proftimer_extract_memcpy(&profiler, "extract_memcpy");
 	memcpy(image->binary_mask.data,bitmap,mp<<2);
 }
 
 void extract(struct_image* image, void* bitmap) {
+  Proftimer proftimer(&profiler, "extract");
 
   if (image->bpp==8) extract8(image, bitmap); else extract16(image, bitmap);
 }
@@ -232,8 +236,10 @@ void inpaint8(struct_image* image, uint32* edt) {
   int maskcount,mask;
   uint32 dist,temp_dist;
   int copy,temp_copy;
+  Proftimer proftimer_inpaint_malloc(&profiler, "inpaint_malloc");
 	uint8** chan_pointers=(uint8**)malloc(g_numchannels*sizeof(uint8*));
 	int* p=(int*)malloc(g_numchannels*sizeof(int));
+  proftimer_inpaint_malloc.stop();
   bool lastpixel;
 
 	for (c=0; c<g_numchannels; c++) chan_pointers[c]=(uint8*)image->channels[c].data;
@@ -496,8 +502,10 @@ void inpaint16(struct_image* image, uint32* edt) {
   int maskcount,mask;
   uint32 dist,temp_dist;
   int copy,temp_copy;
+  Proftimer proftimer_inpaint_malloc(&profiler, "inpaint_malloc");
 	uint16** chan_pointers=(uint16**)malloc(g_numchannels*sizeof(uint16*));
 	int* p=(int*)malloc(g_numchannels*sizeof(int));
+  proftimer_inpaint_malloc.stop();
   bool lastpixel;
 
 	for (c=0; c<g_numchannels; c++) chan_pointers[c]=(uint16*)image->channels[c].data;
@@ -753,10 +761,12 @@ void inpaint16(struct_image* image, uint32* edt) {
 }
 
 void inpaint(struct_image* image, uint32* edt) {
+  Proftimer proftimer(&profiler, "inpaint");
   if (image->bpp==8) inpaint8(image,edt); else inpaint16(image,edt);
 }
 
 void tighten() {
+  Proftimer proftimer(&profiler, "tighten");
 
   int i;
 	int max_right=0,max_bottom=0;
@@ -784,6 +794,7 @@ void tighten() {
 }
 
 void load_images(char** argv, int argc) {
+  Proftimer proftimer_load_images(&profiler, "load_images");
   int i;
 	int c;
   int rowsperstrip;
@@ -931,7 +942,9 @@ void load_images(char** argv, int argc) {
     output(1,"processing %s...\n",I.filename);
 
 		char* pointer=(char*)untrimmed;
+    Proftimer proftimer_TIFFReadEncodedStrip(&profiler, "load_images_TIFFReadEncodedStrip");
     for (s=I.first_strip; s<=I.last_strip; s++) pointer+=TIFFReadEncodedStrip(I.tiff, s, pointer, -1);
+    proftimer_TIFFReadEncodedStrip.stop();
 
 		g_workwidth=std::max(g_workwidth,(int)(I.xpos+I.tiff_width));
     g_workheight=std::max(g_workheight,(int)(I.ypos+I.tiff_height));

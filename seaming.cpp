@@ -5,6 +5,7 @@
 #include <algorithm>
 
 void seam_png(int mode, const char* filename) {
+  Proftimer proftimer(&profiler, "seam_png");
   int x;
   int y;
   int count,i;
@@ -145,6 +146,7 @@ void seam_png(int mode, const char* filename) {
 }
 
 void load_seams() {
+  Proftimer proftimer(&profiler, "load_seams");
   int x,y;
   int pd,pc;
   int size;
@@ -210,6 +212,7 @@ void load_seams() {
 #define VALMASKED(x) (x|mask[x&0xff])
 
 void rightdownxy() {
+	Proftimer proftimer(&profiler, "rightdownxy");
 	int i;
 	int x;
 	int y;
@@ -217,9 +220,11 @@ void rightdownxy() {
 	int mincount=0;
 	int stop;
 	uint32 temp;
+	Proftimer proftimer_malloc(&profiler, "rightdownxy_malloc");
 	int* maskcount=(int*)malloc(g_numimages*sizeof(int));
 	int* masklimit=(int*)malloc(g_numimages*sizeof(int));
 	int* mask=(int*)malloc(0x100*sizeof(int));
+	proftimer_malloc.stop();
 	bool lastpixel=false;
 	uint32* line;
 	uint32 bestval,testval;
@@ -386,6 +391,7 @@ void rightdownxy() {
 }
 
 void leftupxy() {
+	Proftimer proftimer(&profiler, "leftupxy");
 	int i;
 	int x,y;
 	int xorcount;
@@ -393,9 +399,11 @@ void leftupxy() {
 	int mincount=0;
 	int stop;
 	uint32 temp;
+	Proftimer proftimer_malloc(&profiler, "leftupxy_malloc");
 	int* maskcount=(int*)malloc(g_numimages*sizeof(int));
 	int* masklimit=(int*)malloc(g_numimages*sizeof(int));
 	int* mask=(int*)malloc(0x100*sizeof(int));
+	proftimer_malloc.stop();
 	bool lastpixel=false;
 	uint32* line;
 	uint32 bestval,testval;
@@ -523,6 +531,7 @@ void leftupxy() {
 }
 
 void simple_seam() {
+	Proftimer proftimer(&profiler, "simple_seam");
 
 	int i;
 	int x,y;
@@ -564,6 +573,7 @@ void simple_seam() {
 }
 
 void make_seams() {
+	Proftimer proftimer(&profiler, "make_seams");
 	int x,y;
 	int p=0;
 	size_t size;
@@ -603,6 +613,7 @@ void make_seams() {
 }
 
 void seam() {
+	Proftimer proftimer(&profiler, "seam");
 	int i;
 
 	output(1,"seaming...\n");

@@ -5,6 +5,7 @@
 #include <algorithm>
 
 void jpeg_out() {
+	Proftimer proftimer(&profiler, "jpeg_out");
 	int x,y;
 	int xp;
 	int p=0;
@@ -104,6 +105,7 @@ void jpeg_out() {
 }
 
 void tiff_out() {
+	Proftimer proftimer(&profiler, "tiff_out");
 	int i,j;
 	int m;
 	int mincount;
@@ -164,6 +166,7 @@ void tiff_out() {
 		rows=std::min(remaining,rowsperstrip);
 		strip_p=0;
 		for (stripy=0; stripy<rows; stripy++) {
+			Proftimer proftimer_for2(&profiler, "tiff_out_for(stripy)");
 			if (g_nomask) {
 				if (g_workbpp==8) {
 					for (x=0; x<g_workwidth; x++) {
@@ -277,7 +280,9 @@ void tiff_out() {
 			}
 			y++;
 		}
+		Proftimer proftimer_TIFFWriteEncodedStrip(&profiler, "tiff_out_TIFFWriteEncodedStrip");
 		TIFFWriteEncodedStrip(g_tiff,s,strip,rows*mul);
+		proftimer_TIFFWriteEncodedStrip.stop();
 		remaining-=rows;
 	}
 

@@ -4,6 +4,7 @@
 #include <algorithm>
 
 void go(char** argv, int input_args) {
+	Proftimer proftimer(&profiler, "go");
 
 	int blend_wh;
 	int i;
