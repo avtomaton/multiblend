@@ -4,7 +4,6 @@
 #include <algorithm>
 
 void go(char** argv, int input_args) {
-
 	int blend_wh;
 	int i;
 	int pitch;

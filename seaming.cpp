@@ -5,27 +5,27 @@
 #include <algorithm>
 
 void seam_png(int mode, const char* filename) {
-  int x;
-  int y;
-  int count,i;
+	int x;
+	int y;
+	int count,i;
 	int* maskcount=(int*)malloc(g_numimages*sizeof(int));
 	int* masklimit=(int*)malloc(g_numimages*sizeof(int));
 	int* mask=(int*)malloc(0x100*sizeof(int));
-  int mincount;
-  int xorcount;
-  int xorimage;
-  int stop;
-  uint32 temp;
-  uint32* seam_p;
-  png_structp png_ptr;
-  png_infop info_ptr;
+	int mincount;
+	int xorcount;
+	int xorimage;
+	int stop;
+	uint32 temp;
+	uint32* seam_p;
+	png_structp png_ptr;
+	png_infop info_ptr;
 	double base=2;
 	double rad;
 	double r,g,b;
-  FILE* f;
+	FILE* f;
 
-  if (!g_palette) {
-    g_palette=(png_color*)malloc(256*sizeof(png_color));
+	if (!g_palette) {
+		g_palette=(png_color*)malloc(256*sizeof(png_color));
 
 		for (i=0; i<255; i++) {
 			rad=base;
@@ -36,158 +36,158 @@ void seam_png(int mode, const char* filename) {
 			b=std::max<double>(0,std::min<double>(1.0,std::min<double>(rad,4-rad)));
 			base+=6*0.618033988749895;
 			if (base>=6) base-=6;
-      g_palette[i].red=(int)(r*255+0.5);
+			g_palette[i].red=(int)(r*255+0.5);
 			g_palette[i].green=(int)(g*255+0.5);
 			g_palette[i].blue=(int)(b*255+0.5);
 		}
 		g_palette[i].red=0;
 		g_palette[i].green=0;
 		g_palette[i].blue=0;
-  }
+	}
 
-  switch (mode) {
-    case 0 : output(1,"saving xor map...\n"); break;
-    case 1 : output(1,"saving seams...\n"); break;
-  }
+	switch (mode) {
+		case 0 : output(1,"saving xor map...\n"); break;
+		case 1 : output(1,"saving seams...\n"); break;
+	}
 
-  fopen_s(&f, filename, "wb");
-  if (!f) {
-    output(0,"WARNING: couldn't save seam file\n");
-    return;
-  }
+	fopen_s(&f, filename, "wb");
+	if (!f) {
+		output(0,"WARNING: couldn't save seam file\n");
+		return;
+	}
 
-  png_ptr=png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-  if (!png_ptr) {
-    output(0,"WARNING: PNG create failed\n");
-    return;
-  }
+	png_ptr=png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	if (!png_ptr) {
+		output(0,"WARNING: PNG create failed\n");
+		return;
+	}
 
-  info_ptr=png_create_info_struct(png_ptr);
-  if (!info_ptr) {
-    png_destroy_write_struct(&png_ptr,(png_infopp)NULL);
-    return;
-  }
+	info_ptr=png_create_info_struct(png_ptr);
+	if (!info_ptr) {
+		png_destroy_write_struct(&png_ptr,(png_infopp)NULL);
+		return;
+	}
 
-  png_init_io(png_ptr, f);
+	png_init_io(png_ptr, f);
 
-  png_set_IHDR(png_ptr,info_ptr,g_workwidth,g_workheight,8,PNG_COLOR_TYPE_PALETTE,PNG_INTERLACE_NONE,PNG_COMPRESSION_TYPE_DEFAULT,PNG_FILTER_TYPE_DEFAULT);
-  png_set_PLTE(png_ptr,info_ptr,g_palette,256);
+	png_set_IHDR(png_ptr,info_ptr,g_workwidth,g_workheight,8,PNG_COLOR_TYPE_PALETTE,PNG_INTERLACE_NONE,PNG_COMPRESSION_TYPE_DEFAULT,PNG_FILTER_TYPE_DEFAULT);
+	png_set_PLTE(png_ptr,info_ptr,g_palette,256);
 
-  png_write_info(png_ptr, info_ptr);
+	png_write_info(png_ptr, info_ptr);
 
-  if (mode==0) {
-    for (y=0; y<g_workheight; y++) {
-		  for (i=0; i<g_numimages; i++) {
-			  mask[i]=MASKOFF;
-        if (y>=g_images[i].ypos && y<g_images[i].ypos+g_images[i].height) {
-				  maskcount[i]=g_images[i].xpos;
-				  masklimit[i]=g_images[i].xpos+g_images[i].width;
-				  g_images[i].binary_mask.pointer=&g_images[i].binary_mask.data[g_images[i].binary_mask.rows[y-g_images[i].ypos]];
-			  } else {
-				  maskcount[i]=g_workwidth;
-				  masklimit[i]=g_workwidth;
-			  }
-		  }
+	if (mode==0) {
+		for (y=0; y<g_workheight; y++) {
+			for (i=0; i<g_numimages; i++) {
+				mask[i]=MASKOFF;
+				if (y>=g_images[i].ypos && y<g_images[i].ypos+g_images[i].height) {
+					maskcount[i]=g_images[i].xpos;
+					masklimit[i]=g_images[i].xpos+g_images[i].width;
+					g_images[i].binary_mask.pointer=&g_images[i].binary_mask.data[g_images[i].binary_mask.rows[y-g_images[i].ypos]];
+				} else {
+					maskcount[i]=g_workwidth;
+					masklimit[i]=g_workwidth;
+				}
+			}
 
-		  x=0;
-		  while (x<g_workwidth) {
-			  mincount=g_workwidth-x;
-			  xorcount=0;
-			  for (i=0; i<g_numimages; i++) {
-				  if (maskcount[i]==0) {
-					  if (x<masklimit[i]) {
-						  NEXTiMASK(i);
-					  } else {
-						  mask[i]=MASKOFF;
-						  maskcount[i]=mincount;
-					  }
-				  }
+			x=0;
+			while (x<g_workwidth) {
+				mincount=g_workwidth-x;
+				xorcount=0;
+				for (i=0; i<g_numimages; i++) {
+					if (maskcount[i]==0) {
+						if (x<masklimit[i]) {
+							NEXTiMASK(i);
+						} else {
+							mask[i]=MASKOFF;
+							maskcount[i]=mincount;
+						}
+					}
 
-				  if (maskcount[i]<mincount) mincount=maskcount[i];
-          if (mask[i]!=MASKOFF) {
-					  xorcount++;
-  					xorimage=i;
-				  }
-			  }
+					if (maskcount[i]<mincount) mincount=maskcount[i];
+					if (mask[i]!=MASKOFF) {
+						xorcount++;
+						xorimage=i;
+					}
+				}
 
-        stop=x+mincount;
-        
-        if (xorcount!=1) xorimage=255;
+				stop=x+mincount;
 
-        while (x<stop) {
-          ((uint8*)g_line0)[x++]=xorimage;
-        }
+				if (xorcount!=1) xorimage=255;
 
-        for (i=0; i<g_numimages; i++) maskcount[i]-=mincount;
-      }
+				while (x<stop) {
+					((uint8*)g_line0)[x++]=xorimage;
+				}
 
-      png_write_row(png_ptr, (uint8*)g_line0);
-    }
-  }
+				for (i=0; i<g_numimages; i++) maskcount[i]-=mincount;
+			}
 
-  else if (mode==1) {
-    seam_p=g_seams;
+			png_write_row(png_ptr, (uint8*)g_line0);
+		}
+	}
 
-    for (y=0; y<g_workheight; y++) {
-      x=0;
-      while (x<g_workwidth) {
-        i=*seam_p&0xff;
-        count=*seam_p++>>8;
-        memset(&((uint8*)g_line0)[x],i,count);
-        x+=count;
-      }
+	else if (mode==1) {
+		seam_p=g_seams;
 
-      png_write_row(png_ptr, (uint8*)g_line0);
-    }
-  }
+		for (y=0; y<g_workheight; y++) {
+			x=0;
+			while (x<g_workwidth) {
+				i=*seam_p&0xff;
+				count=*seam_p++>>8;
+				memset(&((uint8*)g_line0)[x],i,count);
+				x+=count;
+			}
 
-  fclose(f);
+			png_write_row(png_ptr, (uint8*)g_line0);
+		}
+	}
+
+	fclose(f);
 }
 
 void load_seams() {
-  int x,y;
-  int pd,pc;
-  int size;
-  int a,b;
-  int count=1;
-  int p=0;
-  png_uint_32 pw,ph;
-  uint8 sig[8];
-  png_structp png_ptr;
-  png_infop info_ptr;
-  FILE* f;
+	int x,y;
+	int pd,pc;
+	int size;
+	int a,b;
+	int count=1;
+	int p=0;
+	png_uint_32 pw,ph;
+	uint8 sig[8];
+	png_structp png_ptr;
+	png_infop info_ptr;
+	FILE* f;
 
-  fopen_s(&f,g_seamload_filename,"rb");
-  if (!f) die("Couldn't open seam file!");
+	fopen_s(&f,g_seamload_filename,"rb");
+	if (!f) die("Couldn't open seam file!");
 
-  fread(sig, 1, 8, f);
-  if (!png_check_sig(sig,8)) die("Bad PNG signature!");
-  
-  png_ptr=png_create_read_struct(PNG_LIBPNG_VER_STRING,NULL,NULL,NULL);
-  if (!png_ptr) die("PNG problem");
-  info_ptr=png_create_info_struct(png_ptr);
-  if (!info_ptr) die("PNG problem");
+	fread(sig, 1, 8, f);
+	if (!png_check_sig(sig,8)) die("Bad PNG signature!");
 
-  png_init_io(png_ptr,f);
-  png_set_sig_bytes(png_ptr,8);
-  png_read_info(png_ptr,info_ptr);
-  png_get_IHDR(png_ptr, info_ptr, &pw, &ph, &pd, &pc,NULL,NULL,NULL);
+	png_ptr=png_create_read_struct(PNG_LIBPNG_VER_STRING,NULL,NULL,NULL);
+	if (!png_ptr) die("PNG problem");
+	info_ptr=png_create_info_struct(png_ptr);
+	if (!info_ptr) die("PNG problem");
 
-  if (pw!=g_workwidth || ph!=g_workheight) die("PNG dimensions don't match workspace!");
-  if (pd!=8 || pc!=PNG_COLOR_TYPE_PALETTE) die("Incorrect seam PNG format!");
+	png_init_io(png_ptr,f);
+	png_set_sig_bytes(png_ptr,8);
+	png_read_info(png_ptr,info_ptr);
+	png_get_IHDR(png_ptr, info_ptr, &pw, &ph, &pd, &pc,NULL,NULL,NULL);
+
+	if (pw!=g_workwidth || ph!=g_workheight) die("PNG dimensions don't match workspace!");
+	if (pd!=8 || pc!=PNG_COLOR_TYPE_PALETTE) die("Incorrect seam PNG format!");
 
 	size=(g_numimages*g_workwidth)<<2;
 	g_seams=(uint32*)malloc(size*sizeof(uint32));
 
 	for (y=0; y<g_workheight; y++) {
-    png_read_row(png_ptr,(png_bytep)g_line0,NULL);
-    a=((uint8*)g_line0)[0]&0xff;
+		png_read_row(png_ptr,(png_bytep)g_line0,NULL);
+		a=((uint8*)g_line0)[0]&0xff;
 		x=1;
 		while (x<g_workwidth) {
-      b=((uint8*)g_line0)[x++]&0xff;
+			b=((uint8*)g_line0)[x++]&0xff;
 			if (b!=a) {
 				g_seams[p++]=count<<8|a;
-        g_images[a].seampresent=true;
+				g_images[a].seampresent=true;
 				count=1;
 				a=b;
 			} else {
@@ -229,11 +229,11 @@ void rightdownxy() {
 
 	y=0;
 	while (y<g_workheight) {
-	  line=&g_edt[y*g_workwidth];
+		line=&g_edt[y*g_workwidth];
 
 		for (i=0; i<g_numimages; i++) {
 			mask[i]=MASKOFF;
-      if (y>=g_images[i].ypos && y<g_images[i].ypos+g_images[i].height) {
+			if (y>=g_images[i].ypos && y<g_images[i].ypos+g_images[i].height) {
 				maskcount[i]=g_images[i].xpos;
 				masklimit[i]=g_images[i].xpos+g_images[i].width;
 				g_images[i].binary_mask.pointer=&g_images[i].binary_mask.data[g_images[i].binary_mask.rows[y-g_images[i].ypos]];
@@ -258,7 +258,7 @@ void rightdownxy() {
 				}
 
 				if (maskcount[i]<mincount) mincount=maskcount[i];
-        if (mask[i]!=MASKOFF) {
+				if (mask[i]!=MASKOFF) {
 					xorcount++;
 //					xorimage=i;
 				}
@@ -317,7 +317,7 @@ void rightdownxy() {
 					}
 
 /* abc
-   dx  */
+	 dx  */
 					if (x<stop) {
 						a=VALMASKED(line[-g_workwidth+x-1])+(4<<8);
 						b=VALMASKED(line[-g_workwidth+x])+(3<<8);
@@ -332,17 +332,17 @@ void rightdownxy() {
 							if (b<bestval) bestval=b;
 							if (c<bestval) bestval=c;
 							if (d<bestval) bestval=d;
-	
+
 							if (bestval&MASKOFF && xorcount!=0) {
 								for (i=0; i<g_numimages; i++) {
 									if (mask[i]==MASKON) {
 										g_seamwarning=true;
 										bestval=MASKOFF|i;
-  									if (!g_reverse) break;
+										if (!g_reverse) break;
 									}
 								}
 							}
-						
+
 							line[x++]=bestval;
 
 							a=b+(1<<8);
@@ -405,11 +405,11 @@ void leftupxy() {
 
 	y=g_workheight-1;
 	while (y>=0) {
-	  line=&g_edt[y*g_workwidth];
+		line=&g_edt[y*g_workwidth];
 
 		for (i=0; i<g_numimages; i++) {
 			mask[i]=MASKOFF;
-      if (y>=g_images[i].ypos && y<g_images[i].ypos+g_images[i].height) {
+			if (y>=g_images[i].ypos && y<g_images[i].ypos+g_images[i].height) {
 				maskcount[i]=g_workwidth-(g_images[i].xpos+g_images[i].width);
 				masklimit[i]=g_images[i].xpos;
 				g_images[i].binary_mask.pointer=&g_images[i].binary_mask.data[g_images[i].binary_mask.rows[y-g_images[i].ypos+1]]; // point to END of line
@@ -434,7 +434,7 @@ void leftupxy() {
 				}
 
 				if (maskcount[i]<mincount) mincount=maskcount[i];
-        if (mask[i]!=MASKOFF) {
+				if (mask[i]!=MASKOFF) {
 					xorcount++;
 					xorimage=i;
 				}
@@ -473,7 +473,7 @@ void leftupxy() {
 					}
 
 /*  xd
-   abc */
+	 abc */
 					if (x>stop) {
 						b=VALMASKED(line[+g_workwidth+x])+(3<<8);
 						c=VALMASKED(line[+g_workwidth+x+1])+(4<<8);
@@ -540,7 +540,7 @@ void simple_seam() {
 	}
 
 	for (y=0; y<g_workheight; y++) {
-    for (i=0; i<g_numimages; i++) {
+		for (i=0; i<g_numimages; i++) {
 			if (g_images[i].ypos<y || g_images[i].ypos+g_images[i].height>=y) { g_images[i].d=-1; continue; }
 			g_images[i].dx=-g_images[i].cx;
 			dy=g_images[i].cy-y;
@@ -576,10 +576,10 @@ void make_seams() {
 
 	for (y=0; y<g_workheight; y++) {
 		line=&g_edt[y*g_workwidth];
-    a=line[0]&0xff;
+		a=line[0]&0xff;
 		x=1;
 		while (x<g_workwidth) {
-      b=line[x++]&0xff;
+			b=line[x++]&0xff;
 			if (b!=a) {
 				g_seams[p++]=count<<8|a;
 				count=1;
@@ -608,40 +608,40 @@ void seam() {
 	output(1,"seaming...\n");
 	for (i=0; i<g_numimages; i++) g_images[i].seampresent=false;
 
-  if (!g_seamload_filename) {
-    if (g_xor_filename) seam_png(0,g_xor_filename);
+	if (!g_seamload_filename) {
+		if (g_xor_filename) seam_png(0,g_xor_filename);
 
 		if (!g_simpleseam) {
-  		g_edt=(uint32*)_aligned_malloc(g_workwidth*g_workheight*sizeof(uint32),0); // if malloc fails fall back on dtcomp
+			g_edt=(uint32*)_aligned_malloc(g_workwidth*g_workheight*sizeof(uint32),0); // if malloc fails fall back on dtcomp
 
-  		if (!g_edt) die("not enough memory to create seams");
+			if (!g_edt) die("not enough memory to create seams");
 
 			leftupxy();
 			rightdownxy();
-    	make_seams();
+			make_seams();
 
 			_aligned_free(g_edt);
 		} else {
 			simple_seam();
 		}
 
-    if (g_seamsave_filename) seam_png(1,g_seamsave_filename);
+		if (g_seamsave_filename) seam_png(1,g_seamsave_filename);
 
-	  for (i=0; i<g_numimages; i++) {
-		  if (!g_images[i].seampresent) {
-        printf("WARNING: some images completely overlapped\n");
-		    break;
-      }
-	  }
-	  if (g_seamwarning) printf("WARNING: some image areas have been arbitrarily assigned\n");
+		for (i=0; i<g_numimages; i++) {
+			if (!g_images[i].seampresent) {
+				printf("WARNING: some images completely overlapped\n");
+				break;
+			}
+		}
+		if (g_seamwarning) printf("WARNING: some image areas have been arbitrarily assigned\n");
 	} else {
-    load_seams();
+		load_seams();
 
-    for (i=0; i<g_numimages; i++) {
-      if (!g_images[i].seampresent) {
-        printf("WARNING: some images not present in seam bitmap\n");
-        break;
-      }
-    }
-  }
+		for (i=0; i<g_numimages; i++) {
+			if (!g_images[i].seampresent) {
+				printf("WARNING: some images not present in seam bitmap\n");
+				break;
+			}
+		}
+	}
 }

@@ -14,13 +14,13 @@ void jpeg_out() {
 	int* maskcount=(int*)malloc(g_numimages*sizeof(int));
 	int* masklimit=(int*)malloc(g_numimages*sizeof(int));
 	int* mask=(int*)malloc(g_numimages*sizeof(int));
-  struct jpeg_compress_struct cinfo;
-  struct jpeg_error_mgr jerr;
+	struct jpeg_compress_struct cinfo;
+	struct jpeg_error_mgr jerr;
 	JSAMPROW row=(JSAMPROW)malloc(g_workwidth*3);
 	uint32 temp;
 
 	cinfo.err = jpeg_std_error(&jerr);
-  jpeg_create_compress(&cinfo);
+	jpeg_create_compress(&cinfo);
 	jpeg_stdio_dest(&cinfo,g_jpeg);
 
 	cinfo.image_width=g_workwidth;
@@ -41,7 +41,7 @@ void jpeg_out() {
 				((uint8*)row)[xp++]=((uint8*)g_out_channels[2])[p];
 				p++;
 			}
-  		jpeg_write_scanlines(&cinfo,&row,1);
+			jpeg_write_scanlines(&cinfo,&row,1);
 		}
 	} else {
 		for (y=0; y<g_workheight; y++) {
@@ -100,7 +100,7 @@ void jpeg_out() {
 
 	jpeg_finish_compress(&cinfo);
 	jpeg_destroy_compress(&cinfo);
-  fclose(g_jpeg);
+	fclose(g_jpeg);
 }
 
 void tiff_out() {
@@ -118,7 +118,7 @@ void tiff_out() {
 	int x,y=0,s;
 	int stripy;
 	int rows;
-  uint16 out[1];
+	uint16 out[1];
 	uint32 temp;
 	int mul;
 
@@ -142,11 +142,11 @@ void tiff_out() {
 	} else {
 		TIFFSetField(g_tiff, TIFFTAG_SAMPLESPERPIXEL, 4);
 		out[0] = EXTRASAMPLE_UNASSALPHA;
-    TIFFSetField(g_tiff, TIFFTAG_EXTRASAMPLES, 1, &out);
+		TIFFSetField(g_tiff, TIFFTAG_EXTRASAMPLES, 1, &out);
 	}
-  TIFFSetField(g_tiff, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_RGB);
-  if (g_xres!=-1) { TIFFSetField(g_tiff, TIFFTAG_XRESOLUTION, g_xres); TIFFSetField(g_tiff, TIFFTAG_XPOSITION, (float)(g_min_left/g_xres)); }
-  if (g_yres!=-1) { TIFFSetField(g_tiff, TIFFTAG_YRESOLUTION, g_yres); TIFFSetField(g_tiff, TIFFTAG_YPOSITION, (float)(g_min_top/g_yres)); }
+	TIFFSetField(g_tiff, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_RGB);
+	if (g_xres!=-1) { TIFFSetField(g_tiff, TIFFTAG_XRESOLUTION, g_xres); TIFFSetField(g_tiff, TIFFTAG_XPOSITION, (float)(g_min_left/g_xres)); }
+	if (g_yres!=-1) { TIFFSetField(g_tiff, TIFFTAG_YRESOLUTION, g_yres); TIFFSetField(g_tiff, TIFFTAG_YPOSITION, (float)(g_min_top/g_yres)); }
 
 	if (g_images[0].geotiff.set) {
 		// if we got a georeferenced input, store the geotags in the output
@@ -157,9 +157,9 @@ void tiff_out() {
 		geotiff_write(g_tiff, &info);
 	}
 
-  strips=(int)((g_workheight+rowsperstrip-1)/rowsperstrip);
+	strips=(int)((g_workheight+rowsperstrip-1)/rowsperstrip);
 	remaining=g_workheight;
-	
+
 	for (s=0; s<strips; s++) {
 		rows=std::min(remaining,rowsperstrip);
 		strip_p=0;

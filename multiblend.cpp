@@ -1,24 +1,24 @@
 /*
-  multiblend (c) 2013 David Horman
+	multiblend (c) 2013 David Horman
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2, or (at your option)
-  any later version.
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2, or (at your option)
+	any later version.
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA.
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to the Free Software
+	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA.
 
-  The author can be contacted at: david.horman@jerseymail.co.uk
+	The author can be contacted at: david.horman@jerseymail.co.uk
 
-  Discussion at http://tawbaware.com/forum2/viewtopic.php?f=3&t=6396
-             or http://groups.google.com/group/hugin-ptx/
+	Discussion at http://tawbaware.com/forum2/viewtopic.php?f=3&t=6396
+						 or http://groups.google.com/group/hugin-ptx/
 */
 
 #include <algorithm>
@@ -48,20 +48,20 @@ void help() {
 	printf("                         NONE (default), PACKBITS, or LZW\n");
 	printf("                         For JPEG output, X is JPEG quality (0-100, default 75)\n");
 	printf("  --cache                cache input images to disk to minimise memory usage\n");
-  printf("  --save-seams <file>    Save seams to PNG file for external editing\n");
-  printf("  --no-output            Don't perform blend (for use with --save-seams)\n");
-  printf("  --load-seams <file>    Load seams from PNG file\n");
+	printf("  --save-seams <file>    Save seams to PNG file for external editing\n");
+	printf("  --no-output            Don't perform blend (for use with --save-seams)\n");
+	printf("  --load-seams <file>    Load seams from PNG file\n");
 	printf("  --bigtiff              BigTIFF output (not well tested)\n");
 	printf("  --reverse              reverse image priority (last=highest)\n");
 	printf("  --quiet                suppress output (except warnings)\n");
-  printf("\n");
-  printf("Pass a single image as input to blend around the left/right boundary.\n");
+	printf("\n");
+	printf("Pass a single image as input to blend around the left/right boundary.\n");
 	exit(0);
 }
 
 int main(int argc, char* argv[]) {
-  int i;
-  int input_args;
+	int i;
+	int input_args;
 	int temp;
 	my_timer timer_all;
 
@@ -72,14 +72,14 @@ int main(int argc, char* argv[]) {
 	printf("multiblend v0.6.2 (c) 2014 David Horman        http://horman.net/multiblend/\n");
 	printf("----------------------------------------------------------------------------\n");
 
-  if (argc==1 || !strcmp(argv[1],"-h") || !strcmp(argv[1],"--help") || !strcmp(argv[1],"/?")) help();
+	if (argc==1 || !strcmp(argv[1],"-h") || !strcmp(argv[1],"--help") || !strcmp(argv[1],"/?")) help();
 
-  printf("\n");
+	printf("\n");
 
-  if (argc<3) die("not enough arguments (try -h for help)");
+	if (argc<3) die("not enough arguments (try -h for help)");
 
 	for (i=1; i<argc-1; i++) {
-    if (!strcmp(argv[i],"-d")) {
+		if (!strcmp(argv[i],"-d")) {
 			g_workbpp_cmd=atoi(argv[++i]);
 			if (g_workbpp_cmd!=8 && g_workbpp_cmd!=16) {
 				die("invalid output depth specified");
@@ -115,19 +115,19 @@ int main(int argc, char* argv[]) {
 			else if (_stricmp(comp,"none")==0) g_compression=COMPRESSION_NONE;
 			else die("unknown compression codec");
 		}
-    else if (!strcmp(argv[i],"-v") || !strcmp(argv[i],"--verbose")) g_verbosity++;
+		else if (!strcmp(argv[i],"-v") || !strcmp(argv[i],"--verbose")) g_verbosity++;
 		else if (!strcmp(argv[i],"-q") || !strcmp(argv[i],"--quiet")) g_verbosity--;
-    else if (!strcmp(argv[i],"--debug")) g_debug=true;
+		else if (!strcmp(argv[i],"--debug")) g_debug=true;
 		else if (!strcmp(argv[i],"--saveseams") || !strcmp(argv[i],"--save-seams")) g_seamsave_filename=argv[++i];
-    else if (!strcmp(argv[i],"--loadseams") || !strcmp(argv[i],"--load-seams")) g_seamload_filename=argv[++i];
+		else if (!strcmp(argv[i],"--loadseams") || !strcmp(argv[i],"--load-seams")) g_seamload_filename=argv[++i];
 		else if (!strcmp(argv[i],"--simpleseam") || !strcmp(argv[i],"--simple-seam")) g_simpleseam=true;
-    else if (!strcmp(argv[i],"--savemasks") || !strcmp(argv[i],"--save-masks")) g_savemasks=true;
-    else if (!strcmp(argv[i],"--saveoutpyramids")) g_save_out_pyramids=true;
+		else if (!strcmp(argv[i],"--savemasks") || !strcmp(argv[i],"--save-masks")) g_savemasks=true;
+		else if (!strcmp(argv[i],"--saveoutpyramids")) g_save_out_pyramids=true;
 		else if (!strcmp(argv[i],"--savexor") || !strcmp(argv[i],"--save-xor")) g_xor_filename=argv[++i];
-    else if (!strcmp(argv[i],"--no-output")) g_nooutput=true;
+		else if (!strcmp(argv[i],"--no-output")) g_nooutput=true;
 		else if (!strcmp(argv[i],"--cache")) g_caching=true;
-    else if (!strcmp(argv[i],"-o") || !strcmp(argv[i],"--output")) {
-      g_output_filename=argv[++i];
+		else if (!strcmp(argv[i],"-o") || !strcmp(argv[i],"--output")) {
+			g_output_filename=argv[++i];
 			char* ext=strrchr(g_output_filename,'.')+1;
 			if (!(_stricmp(ext,"jpg") && _stricmp(ext,"jpeg"))) {
 				if (g_compression!=-1) {
@@ -146,24 +146,24 @@ int main(int argc, char* argv[]) {
 				die("unknown file extension!");
 			}
 
-      i++;
-      break;
-    } else {
-      die ("unknown argument \"%s\"",argv[i]);
-    }
-  }
+			i++;
+			break;
+		} else {
+			die ("unknown argument \"%s\"",argv[i]);
+		}
+	}
 
-  if (!g_output_filename && !g_seamsave_filename) die("no output file specified");
+	if (!g_output_filename && !g_seamsave_filename) die("no output file specified");
 
-  if (!strcmp(argv[i],"--")) i++;
+	if (!strcmp(argv[i],"--")) i++;
 
-  input_args=argc-i;
-  if (input_args==0) die("no input files specified");
-  if (input_args>255) die("too many (>255) input images specified");
+	input_args=argc-i;
+	if (input_args==0) die("no input files specified");
+	if (input_args>255) die("too many (>255) input images specified");
 
 	go(&argv[i],input_args);
 
-  if (g_timing) timer_all.report("Execution time");
+	if (g_timing) timer_all.report("Execution time");
 
 	clear_temp();
 

@@ -28,7 +28,7 @@ void dewhorl_old() {
 
 			total=(int)(total*(1.0/(g_output_pyramid[l].pitch<<1))+0.5);
 
-      for (x=0; x<g_output_pyramid[l].pitch<<1; x++) {
+			for (x=0; x<g_output_pyramid[l].pitch<<1; x++) {
 				if (g_workbpp==8) {
 				  ((short*)(g_output_pyramid[l].data))[x]=total;
 				} else {
@@ -49,7 +49,7 @@ void dewhorl() {
 
 	output(1,"dewhorling...\n");
 
-  for (y=0; y<end_row; y++) {
+	for (y=0; y<end_row; y++) {
 //if (y==1) printf("%d\n=\n",y);
 		d=1-sin(y*(1.0/end_row)*3.1415926535897932384626433832795*0.5);
 		window=(int)(g_workwidth*0.5*d);
