@@ -19,9 +19,9 @@ LINK = g++
 INCLUDES = -I/usr/local/include
 #opencv
 LIBS += -L/usr/local/lib
-LIBS += -lopencv_core
+LIBS += -lopencv_core -lopencv_highgui
 #other libs
-LIBS += -L/usr/local/Cellar/libpng/1.6.17/lib 
+LIBS += -L/usr/local/Cellar/libpng/1.6.17/lib
 LIBS += -ltiff -ltiffxx -ljpeg -lpng
 
 #-----------targets------------
