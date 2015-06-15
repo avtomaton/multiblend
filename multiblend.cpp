@@ -27,6 +27,8 @@
 #include "globals.h"
 #include "functions.h"
 
+
+
 #ifdef WIN32
 #pragma comment(lib,"libtiff.lib")
 #pragma comment(lib,"turbojpeg-static.lib")
@@ -59,7 +61,7 @@ void help() {
 	exit(0);
 }
 
-int main(int argc, char* argv[]) {
+int start(int argc, char* argv[], const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
 	int i;
 	int input_args;
 	int temp;
@@ -161,7 +163,7 @@ int main(int argc, char* argv[]) {
 	if (input_args==0) die("no input files specified");
 	if (input_args>255) die("too many (>255) input images specified");
 
-	go(&argv[i],input_args);
+	go(mats, masks);
 
 	if (g_timing) timer_all.report("Execution time");
 

@@ -8,6 +8,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
+#include <string>
 
 void trim8(void* bitmap, uint32 w, uint32 h, int bpp, int* top, int* left, int* bottom, int* right) {
 	size_t p;
@@ -907,8 +908,11 @@ void mat2struct(int i, const std::string &filename, const cv::Mat &matimage, con
 	free(untrimmed);
 }
 
-void load_images(char** argv, int argc) {
-	g_numimages = argc;
+void load_images(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
+	g_numimages = mats.size();
+	if (mats.size() != masks.size())
+		die("mats.size() != masks.size()");
+
 	g_images = (struct_image*)malloc(g_numimages*sizeof(struct_image));
 
 	for (int i = 0; i < g_numimages; ++i) {
@@ -916,11 +920,13 @@ void load_images(char** argv, int argc) {
 		I.channels=(struct_channel*)malloc(g_numchannels*sizeof(struct_channel));
 		for (int c = 0; c < g_numchannels; ++c) I.channels[c].f=0;
 	}
-
+	char buf[256];
 	for (int i = 0; i < g_numimages; ++i) {
-		cv::Mat matimage = cv::imread(argv[i], CV_LOAD_IMAGE_COLOR);
-		cv::Mat mask = cv::imread(std::string("mask_") + std::string(argv[i]), CV_LOAD_IMAGE_GRAYSCALE);
-		mat2struct(i, argv[i], matimage, mask);
+		//cv::Mat matimage = cv::imread(argv[i], CV_LOAD_IMAGE_COLOR);
+		//cv::Mat mask = cv::imread(std::string("mask_") + std::string(argv[i]), CV_LOAD_IMAGE_GRAYSCALE);
+
+		sprintf(buf, "%d/", i);
+		mat2struct(i, buf, mats[i], masks[i]);
 	}
 
 	if (g_crop) tighten();

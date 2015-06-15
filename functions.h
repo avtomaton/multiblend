@@ -6,6 +6,8 @@
 
 #include "structs.h"
 
+#include <opencv2/core/core.hpp>
+
 void output(int level, const char* fmt, ...);
 
 void report_time(const char* name, double time);
@@ -39,7 +41,7 @@ void inpaint8(struct_image* image, uint32* edt);
 void inpaint16(struct_image* image, uint32* edt);
 void inpaint(struct_image* image, uint32* edt);
 void tighten();
-void load_images(char** argv, int argc);
+void load_images(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks);
 
 //seaming
 void seam_png(int mode, const char* filename);
@@ -81,6 +83,8 @@ void pseudowrap_seam();
 void pseudowrap_unsplit();
 
 //go
-void go(char** argv, int input_args);
+void go(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks);
+int start(int argc, char* argv[], const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks);
+
 
 #endif

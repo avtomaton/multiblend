@@ -3,7 +3,7 @@
 
 #include <algorithm>
 
-void go(char** argv, int input_args) {
+void go(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
 	int blend_wh;
 	int i;
 	int pitch;
@@ -19,13 +19,13 @@ void go(char** argv, int input_args) {
 		}
 	}
 
-	if (input_args==1 && g_caching) {
+	if (mats.size()==1 && g_caching) {
 		output(1,"Only one input image; caching disabled\n");
 		g_caching=false;
 	}
 
 	timer.set();
-	load_images(argv,input_args);
+	load_images(mats, masks);
 
 	if (g_numimages==0) die("no valid input files");
 
