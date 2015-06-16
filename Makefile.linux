@@ -52,8 +52,9 @@ default: .depend $(OUT)
 
 $(OUT): $(OBJ) $(COBJ)
 	ar rcs $(OUT) $(OBJ)
+#	$(LINK) $(OBJ) -o $@ $(LDFLAGS) $(LIBS)
 .cpp.o:
-	$(CCC) $(DEFINES) $(LIBS) $(CPPFLAGS) -c $< -o $@
+	$(CCC) $(DEFINES) $(CPPFLAGS) -c $< -o $@
 
 .depend:
 	$(CCC) $(INCLUDES) -MM $(SRC) >.depend

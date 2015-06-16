@@ -20,14 +20,16 @@
 	Discussion at http://tawbaware.com/forum2/viewtopic.php?f=3&t=6396
 						 or http://groups.google.com/group/hugin-ptx/
 */
-
-#include <algorithm>
-#include <stdio.h>
+#include "multiblend.h"
 
 #include "globals.h"
 #include "functions.h"
 
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
+#include <algorithm>
+#include <stdio.h>
 
 #ifdef WIN32
 #pragma comment(lib,"libtiff.lib")
@@ -61,13 +63,32 @@ void help() {
 	exit(0);
 }
 
-int start(int argc, char* argv[], const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
-	int i;
-	int input_args;
-	int temp;
-	my_timer timer_all;
 
-	timer_all.set();
+void parse(std::vector<std::string> &output, const std::string &input)
+{
+	std::stringstream os(input);
+	std::string temp;
+	while (os >> temp)
+		output.push_back(temp);
+}
+
+int multiblend(const std::string &inputstring, const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
+	std::vector<std::string> args;
+	args.push_back("multiblend");
+	parse(args, inputstring);
+	int argc = args.size();
+	const char **argv = new const char*[argc];
+	for (int i = 0; i < argc; ++i)
+		argv[i] = args[i].c_str();
+
+	for (int i = 0; i < argc; ++i)
+	{
+		printf("argv[%d] = %s\n", i, argv[i]);
+	}
+
+
+	int temp;
+
 	TIFFSetWarningHandler(NULL);
 
 	printf("\n");
@@ -80,7 +101,7 @@ int start(int argc, char* argv[], const std::vector<cv::Mat> &mats, const std::v
 
 	if (argc<3) die("not enough arguments (try -h for help)");
 
-	for (i=1; i<argc-1; i++) {
+	for (int i=1; i<argc-1; i++) {
 		if (!strcmp(argv[i],"-d")) {
 			g_workbpp_cmd=atoi(argv[++i]);
 			if (g_workbpp_cmd!=8 && g_workbpp_cmd!=16) {
@@ -108,7 +129,7 @@ int start(int argc, char* argv[], const std::vector<cv::Mat> &mats, const std::v
 		else if (!strncmp(argv[i],"--primary-seam-generator",24)) output(0,"ignoring enblend option --primary-seam-generator\n");
 
 		else if (!strncmp(argv[i],"--compression",13)) {
-			char* comp=argv[i]+14;
+			char* comp=(char*)argv[i]+14;
 			if (strcmp(comp,"0")==0) g_jpegquality=0;
 			else if (atoi(comp)>0) g_jpegquality=atoi(comp);
 			else if (_stricmp(comp,"lzw")==0) g_compression=COMPRESSION_LZW;
@@ -120,16 +141,16 @@ int start(int argc, char* argv[], const std::vector<cv::Mat> &mats, const std::v
 		else if (!strcmp(argv[i],"-v") || !strcmp(argv[i],"--verbose")) g_verbosity++;
 		else if (!strcmp(argv[i],"-q") || !strcmp(argv[i],"--quiet")) g_verbosity--;
 		else if (!strcmp(argv[i],"--debug")) g_debug=true;
-		else if (!strcmp(argv[i],"--saveseams") || !strcmp(argv[i],"--save-seams")) g_seamsave_filename=argv[++i];
-		else if (!strcmp(argv[i],"--loadseams") || !strcmp(argv[i],"--load-seams")) g_seamload_filename=argv[++i];
+		else if (!strcmp(argv[i],"--saveseams") || !strcmp(argv[i],"--save-seams")) g_seamsave_filename=(char*)argv[++i];
+		else if (!strcmp(argv[i],"--loadseams") || !strcmp(argv[i],"--load-seams")) g_seamload_filename=(char*)argv[++i];
 		else if (!strcmp(argv[i],"--simpleseam") || !strcmp(argv[i],"--simple-seam")) g_simpleseam=true;
 		else if (!strcmp(argv[i],"--savemasks") || !strcmp(argv[i],"--save-masks")) g_savemasks=true;
 		else if (!strcmp(argv[i],"--saveoutpyramids")) g_save_out_pyramids=true;
-		else if (!strcmp(argv[i],"--savexor") || !strcmp(argv[i],"--save-xor")) g_xor_filename=argv[++i];
+		else if (!strcmp(argv[i],"--savexor") || !strcmp(argv[i],"--save-xor")) g_xor_filename=(char*)argv[++i];
 		else if (!strcmp(argv[i],"--no-output")) g_nooutput=true;
 		else if (!strcmp(argv[i],"--cache")) g_caching=true;
 		else if (!strcmp(argv[i],"-o") || !strcmp(argv[i],"--output")) {
-			g_output_filename=argv[++i];
+			g_output_filename=(char*)argv[++i];
 			char* ext=strrchr(g_output_filename,'.')+1;
 			if (!(_stricmp(ext,"jpg") && _stricmp(ext,"jpeg"))) {
 				if (g_compression!=-1) {
@@ -157,22 +178,29 @@ int start(int argc, char* argv[], const std::vector<cv::Mat> &mats, const std::v
 
 	if (!g_output_filename && !g_seamsave_filename) die("no output file specified");
 
-	if (!strcmp(argv[i],"--")) i++;
-
-	input_args=argc-i;
-	if (input_args==0) die("no input files specified");
-	if (input_args>255) die("too many (>255) input images specified");
-
 	go(mats, masks);
-
-	if (g_timing) timer_all.report("Execution time");
-
 	clear_temp();
 
 	if (g_debug) {
 		printf("\nPress Enter to end\n");
 		getchar();
 	}
-
+	delete[] argv;
 	return 0;
 }
+/*
+int main()
+{
+	std::string inputstring = "-d 8 --wideblend --nocrop -o ./000000001.tif";
+	std::vector<cv::Mat> mats;
+	std::vector<cv::Mat> masks;
+	for (int i  = 1; i <= 6; ++i)
+	{
+		char buf[128];
+		sprintf(buf,"000000001-%d.tif", i);
+		mats.push_back(cv::imread(buf, CV_LOAD_IMAGE_COLOR));
+		masks.push_back(cv::imread(std::string("mask_") + std::string(buf),CV_LOAD_IMAGE_GRAYSCALE));
+	}
+	return multiblend(inputstring, mats, masks);
+}
+*/

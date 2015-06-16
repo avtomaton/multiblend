@@ -84,7 +84,9 @@ void pseudowrap_unsplit();
 
 //go
 void go(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks);
-int start(int argc, char* argv[], const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks);
 
+//multiblend
+void help();
+void parse(std::vector<std::string> &output, const std::string &input);
 
 #endif
