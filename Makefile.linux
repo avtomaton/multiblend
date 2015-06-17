@@ -13,7 +13,7 @@ CCC = g++
 CCFLAGS = -O3
 CCFLAGS += -std=c++11
 CCFLAGS += -msse2
-CCFLAGS = -Wall
+CCFLAGS += -Wall
 
 LINK = g++
 
@@ -24,9 +24,10 @@ LIBS += -L/usr/local/lib
 LIBS += -lopencv_core -lopencv_highgui
 #other libs
 #LIBS += -L/usr/local/Cellar/libpng/1.6.17/lib
-LIBS += -ltiff -ltiffxx -ljpeg -lpng
+LIBS += -lpng
 
 #-----------targets------------
+#OUT = $(BIN_FOLDER)/multiblend
 OUT = $(BIN_FOLDER)/libmultiblend.a
 
 APPLICATIONS = $(OUT)
@@ -54,7 +55,7 @@ $(OUT): $(OBJ) $(COBJ)
 	ar rcs $(OUT) $(OBJ)
 #	$(LINK) $(OBJ) -o $@ $(LDFLAGS) $(LIBS)
 .cpp.o:
-	$(CCC) $(DEFINES) $(CPPFLAGS) -c $< -o $@
+	$(CCC) $(DEFINES) $(CCFLAGS) -c $< -o $@
 
 .depend:
 	$(CCC) $(INCLUDES) -MM $(SRC) >.depend
