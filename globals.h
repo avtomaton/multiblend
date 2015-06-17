@@ -33,12 +33,16 @@ extern bool g_save_out_pyramids;
 extern bool g_dewhorl;
 extern char* g_output_filename;
 extern char* g_seamload_filename;
+
 extern png_color* g_palette;
+
 extern char* g_seamsave_filename;
 extern char* g_xor_filename;
 extern int g_numchannels;
 extern void** g_out_channels;
+#if TIFF_LIBRARY
 extern TIFF* g_tiff;
+#endif
 extern FILE* g_jpeg;
 extern int g_compression;
 extern int g_jpegquality;

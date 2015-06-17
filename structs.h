@@ -4,10 +4,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <cstdint>
 #include <png.h>
-#include <jpeglib.h>
-#include <tiffio.h>
+//#include <jpeglib.h>
+//#include <tiffio.h>
 
 #ifdef WIN32
 #define NOMINMAX
@@ -21,6 +21,12 @@
 #else
 	#include <malloc.h>
 #endif
+
+typedef uint8_t uint8;
+typedef uint16_t uint16;
+typedef uint32_t uint32;
+typedef int16_t int16;
+typedef int32_t int32;
 
 union intfloat {
 	float f;
@@ -71,8 +77,10 @@ struct struct_image {
 	struct_level* pyramid;
 	float** masks;
 	bool seampresent;
+	#if TIFF_LIBRARY
 	GeoTIFFInfo geotiff;
 	TIFF* tiff;
+	#endif
 	int tiff_width;
 	int tiff_height;
 	int tiff_u_height;

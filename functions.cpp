@@ -1,5 +1,6 @@
 #include "functions.h"
 #include "globals.h"
+#include  <cstdarg>
 
 void output(int level, const char* fmt, ...) {
 	va_list args;

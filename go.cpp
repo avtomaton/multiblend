@@ -14,8 +14,10 @@ void go(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
 			fopen_s(&g_jpeg,g_output_filename,"wb");
 			if (!g_jpeg) die("couldn't open output file");
 		} else {
+			#if TIFF_LIBRARY
 			if (!g_bigtiff) g_tiff=TIFFOpen(g_output_filename,"w"); else g_tiff=TIFFOpen(g_output_filename,"w8");
 			if (!g_tiff) die("couldn't open output file");
+			#endif
 		}
 	}
 
@@ -87,7 +89,8 @@ void go(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
 		output(1,"writing %s...\n",g_output_filename);
 		timer.set();
 
-		if (g_jpegquality!=-1) jpeg_out(); else tiff_out();
+		//if (g_jpegquality!=-1) jpeg_out(); else tiff_out();
+		opencv_out();
 		timer.report("write");
 	}
 

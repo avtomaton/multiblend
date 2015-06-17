@@ -26,9 +26,10 @@ void clear_temp();
 void die(const char* error, ...);
 
 //geotiff
-void geotiff_register(TIFF* tif);
+/*void geotiff_register(TIFF* tif);
 int geotiff_read(TIFF* tiff, GeoTIFFInfo* info);
 int geotiff_write(TIFF * tiff, GeoTIFFInfo * info);
+*/
 
 //load images
 void trim8(void* bitmap, uint32 w, uint32 h, int bpp, int* top, int* left, int* bottom, int* right);
@@ -76,7 +77,7 @@ void blend();
 //write
 void jpeg_out();
 void tiff_out();
-
+void opencv_out();
 //pseudowrap
 void pseudowrap_split();
 void pseudowrap_seam();
