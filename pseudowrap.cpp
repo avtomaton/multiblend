@@ -2,7 +2,7 @@
 
 void pseudowrap_split() {
 	printf("pseudowrap_split\n");
-	Proftimer proftimer(&profiler, "pseudowrap_split");
+	Proftimer proftimer(&mprofiler, "pseudowrap_split");
 	int c;
 	int y;
 	int spread;
@@ -41,7 +41,7 @@ void pseudowrap_split() {
 }
 
 void pseudowrap_seam() {
-	Proftimer proftimer(&profiler, "pseudowrap_seam");
+	Proftimer proftimer(&mprofiler, "pseudowrap_seam");
 	int y;
 	int p=0;
 	int split=g_workwidth>>1;
@@ -55,7 +55,7 @@ void pseudowrap_seam() {
 }
 
 void pseudowrap_unsplit() {
-	Proftimer proftimer(&profiler, "pseudowrap_unsplit");
+	Proftimer proftimer(&mprofiler, "pseudowrap_unsplit");
 	int c,y;
 	int split=g_workwidth>>1;
 	int bpp=g_workbpp>>4;

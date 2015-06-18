@@ -10,7 +10,7 @@
 #include <emmintrin.h>
 
 void save_out_pyramid(int c, bool collapsed) {
-	Proftimer proftimer(&profiler, "save_out_pyramid");
+	Proftimer proftimer(&mprofiler, "save_out_pyramid");
 	int l;
 	int p;
 	int x,y;
@@ -76,7 +76,7 @@ void save_out_pyramid(int c, bool collapsed) {
 }
 
 void hshrink(struct_level* upper, struct_level* lower) {
-	Proftimer proftimer(&profiler, "hshrink");
+	Proftimer proftimer(&mprofiler, "hshrink");
 	int x,y;
 	int tmp1,tmp2;
 	size_t up=0;
@@ -129,7 +129,7 @@ void hshrink(struct_level* upper, struct_level* lower) {
 }
 
 void vshrink(struct_level* upper, struct_level* lower) {
-	Proftimer proftimer(&profiler, "vshrink");
+	Proftimer proftimer(&mprofiler, "vshrink");
 	int i;
 	int x,y;
 	size_t lp=0;
@@ -262,7 +262,7 @@ __inline void inflate_line_int(int *input, int *output, int w) {
 }
 
 void hps(struct_level* upper, struct_level *lower) {
-	Proftimer proftimer(&profiler, "hps");
+	Proftimer proftimer(&mprofiler, "hps");
 	int i;
 	int x,y;
 	int x_extra0=(upper->x0>>1)-lower->x0;
@@ -326,14 +326,14 @@ void hps(struct_level* upper, struct_level *lower) {
 }
 
 void shrink_hps(struct_level* upper, struct_level* lower) {
-	Proftimer proftimer(&profiler, "shrink_hps");
+	Proftimer proftimer(&mprofiler, "shrink_hps");
 	hshrink(upper,lower);
 	vshrink(upper,lower);
 	hps(upper,lower);
 }
 
 void copy_channel(int i, int c) {
-	Proftimer proftimer(&profiler, "copy_channel");
+	Proftimer proftimer(&mprofiler, "copy_channel");
 	int x,y;
 	struct_level* top=&PY(i,0);
 	void* pixels;
@@ -352,7 +352,7 @@ void copy_channel(int i, int c) {
 	mode=(g_workbpp==16)<<1|(g_images[i].bpp==16);
 
 	if (g_caching) {
-		Proftimer proftimer_rewind_fread(&profiler, "copy_channel_rewind&fread");
+		Proftimer proftimer_rewind_fread(&mprofiler, "copy_channel_rewind&fread");
 		rewind(I.channels[c].f);
 		(g_temp, (I.width*I.height)<<(I.bpp>>4), 1, I.channels[c].f);
 		pixels=g_temp;
@@ -405,7 +405,7 @@ void copy_channel(int i, int c) {
 				for (x=xlim; x<top->pitch; x++) ((int*)top->data)[op++]=a;
 				break;
 		}
-		Proftimer proftimer_memcpy(&profiler, "copy_channel_memcpy");
+		Proftimer proftimer_memcpy(&mprofiler, "copy_channel_memcpy");
 		if (y==0) {
 			switch(mode&2) {
 				case 0:
@@ -423,7 +423,7 @@ void copy_channel(int i, int c) {
 			}
 		}
 	}
-	Proftimer proftimer_memcpy(&profiler, "copy_channel_memcpy");
+	Proftimer proftimer_memcpy(&mprofiler, "copy_channel_memcpy");
 	switch(mode&2) {
 		case 0:
 			for (; y<top->h; y++) {
@@ -440,9 +440,9 @@ void copy_channel(int i, int c) {
 	}
 	proftimer_memcpy.stop();
 
-	if (!g_caching) 
+	if (!g_caching)
 	{
-		Proftimer proftimer_free(&profiler, "copy_channel_free_pixels");
+		Proftimer proftimer_free(&mprofiler, "copy_channel_free_pixels");
 		free(pixels);
 	}
 }
@@ -456,7 +456,7 @@ void copy_channel(int i, int c) {
 }
 
 void mask_into_output(struct_level* input, float* mask, struct_level* output, bool first) {
-	Proftimer proftimer(&profiler, "mask_into_output");
+	Proftimer proftimer(&mprofiler, "mask_into_output");
 	int x,y;
 	void* input_line;
 	int count;
@@ -547,7 +547,7 @@ void mask_into_output(struct_level* input, float* mask, struct_level* output, bo
 }
 
 void collapse(struct_level* lower, struct_level* upper) {
-	Proftimer proftimer(&profiler, "collapse");
+	Proftimer proftimer(&mprofiler, "collapse");
 	int i;
 	int x,y;
 	int sse_pitch;
@@ -577,7 +577,7 @@ void collapse(struct_level* lower, struct_level* upper) {
 	upper_p+=sse_pitch;
 
 	for (y=1; y<lower->h; y++) {
-		Proftimer proftimer(&profiler, "collapse_loop");
+		Proftimer proftimer(&mprofiler, "collapse_loop");
 		if (g_workbpp==8) {
 			inflate_line_short(&((short*)lower->data)[lp],(short*)g_line1,upper->pitch);
 			lp+=lower->pitch;
@@ -613,7 +613,7 @@ void collapse(struct_level* lower, struct_level* upper) {
 }
 
 void dither(struct_level* top, void* channel) {
-	Proftimer proftimer(&profiler, "dither");
+	Proftimer proftimer(&mprofiler, "dither");
 	int i;
 	int x,y;
 	int p=0;
@@ -655,7 +655,7 @@ void dither(struct_level* top, void* channel) {
 }
 
 void blend() {
-	Proftimer proftimer(&profiler, "blend");
+	Proftimer proftimer(&mprofiler, "blend");
 	int i;
 	int l;
 	int c;

@@ -72,7 +72,7 @@ void parse(std::vector<std::string> &output, const std::string &input)
 }
 
 int multiblend(const std::string &inputstring, const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
-	Proftimer proftimer(&profiler, "root");
+	Proftimer proftimer(&mprofiler, "root");
 
 	std::vector<std::string> args;
 	args.push_back("multiblend");
@@ -185,7 +185,7 @@ int multiblend(const std::string &inputstring, const std::vector<cv::Mat> &mats,
 	}
 
 	proftimer.stop();
-	profiler.report();
+	mprofiler.report();
 	delete[] argv;
 
 	return 0;

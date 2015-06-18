@@ -4,7 +4,7 @@
 #include <algorithm>
 
 void go(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
-	Proftimer proftimer(&profiler, "go");
+	Proftimer proftimer(&mprofiler, "go");
 	int blend_wh;
 	int i;
 	int pitch;

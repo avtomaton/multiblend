@@ -4,7 +4,7 @@
 #include "structs.h"
 #include "profiler.h"
 
-extern Profiler profiler;
+extern Profiler mprofiler;
 
 extern void* g_line0;
 extern void* g_line1;

@@ -103,7 +103,7 @@ void trim16(void* bitmap, uint32 w, uint32 h, int bpp, int* top, int* left, int*
 }
 
 void trim(void* bitmap, int w, int h, int bpp, int* top, int* left, int* bottom, int* right) {
-	Proftimer proftimer(&profiler, "trim");
+	Proftimer proftimer(&mprofiler, "trim");
 	if (bpp==8) trim8(bitmap,w,h,bpp,top,left,bottom,right); else trim16(bitmap,w,h,bpp,top,left,bottom,right);
 }
 
@@ -159,7 +159,7 @@ void extract8(struct_image* image, void* bitmap) {
 	image->binary_mask.data=(uint32*)malloc(mp * sizeof(uint32));
 	temp=mp;
 
-	Proftimer proftimer_extract_memcpy(&profiler, "extract_memcpy");
+	Proftimer proftimer_extract_memcpy(&mprofiler, "extract_memcpy");
 	memcpy(image->binary_mask.data,bitmap,mp * sizeof(uint32));
 }
 
@@ -279,12 +279,12 @@ void extract16(struct_image* image, void* bitmap) {
 	image->binary_mask.data=(uint32*)malloc(mp<<2);
 	temp=mp;
 
-	Proftimer proftimer_extract_memcpy(&profiler, "extract_memcpy");
+	Proftimer proftimer_extract_memcpy(&mprofiler, "extract_memcpy");
 	memcpy(image->binary_mask.data,bitmap,mp<<2);
 }
 
 void extract(struct_image* image, void* bitmap) {
-  Proftimer proftimer(&profiler, "extract");
+  Proftimer proftimer(&mprofiler, "extract");
 
 	if (image->bpp==8) extract8(image, bitmap); else extract16(image, bitmap);
 }
@@ -301,7 +301,7 @@ void inpaint8(struct_image* image, uint32* edt) {
 	int maskcount,mask;
 	uint32 dist,temp_dist;
 	int copy,temp_copy;
-	Proftimer proftimer_inpaint_malloc(&profiler, "inpaint_malloc");
+	Proftimer proftimer_inpaint_malloc(&mprofiler, "inpaint_malloc");
 	uint8** chan_pointers=(uint8**)malloc(g_numchannels*sizeof(uint8*));
 	proftimer_inpaint_malloc.stop();
 	int* p=(int*)malloc(g_numchannels*sizeof(int));
@@ -567,7 +567,7 @@ void inpaint16(struct_image* image, uint32* edt) {
 	int maskcount,mask;
 	uint32 dist,temp_dist;
 	int copy,temp_copy;
-	Proftimer proftimer_inpaint_malloc(&profiler, "inpaint_malloc");
+	Proftimer proftimer_inpaint_malloc(&mprofiler, "inpaint_malloc");
 	uint16** chan_pointers=(uint16**)malloc(g_numchannels*sizeof(uint16*));
 	proftimer_inpaint_malloc.stop();
 	int* p=(int*)malloc(g_numchannels*sizeof(int));
@@ -826,12 +826,12 @@ void inpaint16(struct_image* image, uint32* edt) {
 }
 
 void inpaint(struct_image* image, uint32* edt) {
-	Proftimer proftimer(&profiler, "inpaint");
+	Proftimer proftimer(&mprofiler, "inpaint");
 	if (image->bpp==8) inpaint8(image,edt); else inpaint16(image,edt);
 }
 
 void tighten() {
-  Proftimer proftimer(&profiler, "tighten");
+  Proftimer proftimer(&mprofiler, "tighten");
 
 	int i;
 	int max_right=0,max_bottom=0;
@@ -860,7 +860,7 @@ void tighten() {
 
 cv::Rect get_visible_rect(const cv::Mat &mask)
 {
-	Proftimer proftimer_get_visible_rect(&profiler, "get_visible_rect");
+	Proftimer proftimer_get_visible_rect(&mprofiler, "get_visible_rect");
 
 	int xl = mask.cols, yl = mask.rows, xr = 0, yr = 0;
 	for (int i = 0; i < mask.rows; ++i)
@@ -890,7 +890,7 @@ cv::Rect get_visible_rect(const cv::Mat &mask)
 
 void mat2struct(int i, const std::string &filename, const cv::Mat &matimage, const cv::Mat &mask)
 {
-	Proftimer proftimer_mat2struct(&profiler, "mat2struct");
+	Proftimer proftimer_mat2struct(&mprofiler, "mat2struct");
 
 	#ifdef WIN32
 		strcpy_s(g_images[i].filename, 256, filename.c_str());
@@ -924,7 +924,7 @@ void mat2struct(int i, const std::string &filename, const cv::Mat &matimage, con
 }
 
 void load_images(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
-	Proftimer proftimer_load_images(&profiler, "load_images");
+	Proftimer proftimer_load_images(&mprofiler, "load_images");
 	g_numimages = mats.size();
 	if (mats.size() != masks.size())
 		die("mats.size() != masks.size()");

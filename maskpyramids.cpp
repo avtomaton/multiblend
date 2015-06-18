@@ -417,7 +417,7 @@ void shrink_masks() {
 }
 
 void mask_pyramids() {
-	Proftimer proftimer(&profiler, "mask_pyramids");
+	Proftimer proftimer(&mprofiler, "mask_pyramids");
 	output(1,"masks...\n");
 
 	extract_top_masks();

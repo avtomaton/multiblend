@@ -1,6 +1,6 @@
 #include "globals.h"
 
-Profiler profiler;
+Profiler mprofiler;
 
 void* g_line0;
 void* g_line1;
