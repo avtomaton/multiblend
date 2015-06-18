@@ -1,6 +1,8 @@
 #include "globals.h"
 #include "functions.h"
 
+#if TIFF_LIBRARY
+
 // some defintions for geotiff
 
 #define TIFFTAG_GEOPIXELSCALE   33550
@@ -15,19 +17,19 @@
 static const TIFFFieldInfo xtiffFieldInfo[] = {
 	/* XXX Insert Your tags here */
 	{ TIFFTAG_GEOPIXELSCALE, -1,-1, TIFF_DOUBLE,FIELD_CUSTOM,
-		TRUE,TRUE,(char*)"GeoPixelScale" },
+		true,true,(char*)"GeoPixelScale" },
 	{ TIFFTAG_GEOTRANSMATRIX, -1,-1, TIFF_DOUBLE,FIELD_CUSTOM,
-		TRUE,TRUE,(char*)"GeoTransformationMatrix" },
+		true,true,(char*)"GeoTransformationMatrix" },
 	{ TIFFTAG_GEOTIEPOINTS, -1,-1, TIFF_DOUBLE,FIELD_CUSTOM,
-		TRUE,TRUE,(char*)"GeoTiePoints" },
+		true,true,(char*)"GeoTiePoints" },
 	{ TIFFTAG_GEOKEYDIRECTORY, -1,-1, TIFF_SHORT,FIELD_CUSTOM,
-		TRUE,TRUE,(char*)"GeoKeyDirectory" },
+		true,true,(char*)"GeoKeyDirectory" },
 	{ TIFFTAG_GEODOUBLEPARAMS, -1,-1, TIFF_DOUBLE,FIELD_CUSTOM,
-		TRUE,TRUE,(char*)"GeoDoubleParams" },
+		true,true,(char*)"GeoDoubleParams" },
 	{ TIFFTAG_GEOASCIIPARAMS, -1,-1, TIFF_ASCII,FIELD_CUSTOM,
-		TRUE,FALSE,(char*)"GeoASCIIParams" },
+		true,false,(char*)"GeoASCIIParams" },
 	{ TIFFTAG_GDAL_NODATA, -1,-1, TIFF_ASCII,FIELD_CUSTOM,
-		TRUE,FALSE,(char*)"GDALNoDataValue" }
+		true,false,(char*)"GDALNoDataValue" }
 };
 
 void geotiff_register(TIFF* tif) {
@@ -82,3 +84,5 @@ int geotiff_write(TIFF * tiff, GeoTIFFInfo * info) {
 	TIFFSetField(tiff, TIFFTAG_GDAL_NODATA, nodata);
 	return 1;
 }
+
+#endif
