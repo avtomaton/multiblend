@@ -89,9 +89,16 @@ void go(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
 
 		output(1,"writing %s...\n",g_output_filename);
 		timer.set();
-
-		//if (g_jpegquality!=-1) jpeg_out(); else tiff_out();
+		#if TIFF_LIBRARY
+		#if JPEG_LIBRARY
+		if (g_jpegquality!=-1)
+			jpeg_out();
+		else
+		#endif
+			tiff_out();
+		#else
 		opencv_out();
+		#endif
 		timer.report("write");
 	}
 
