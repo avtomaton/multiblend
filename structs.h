@@ -6,13 +6,8 @@
 #include <string.h>
 #include <cstdint>
 #include <png.h>
-
-#if JPEG_LIBRARY
-#include <jpeglib.h>
-#endif
-#if TIFF_LIBRARY
-#include <tiffio.h>
-#endif
+//#include <jpeglib.h>
+//#include <tiffio.h>
 
 #ifdef WIN32
 #define NOMINMAX
