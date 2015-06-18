@@ -73,6 +73,11 @@ void parse(std::vector<std::string> &output, const std::string &input)
 }
 
 int multiblend(const std::string &inputstring, const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
+
+	#if TIFF_LIBRARY
+	TIFFSetWarningHandler(NULL);
+	#endif
+
 	std::vector<std::string> args;
 	args.push_back("multiblend");
 	parse(args, inputstring);
@@ -86,10 +91,7 @@ int multiblend(const std::string &inputstring, const std::vector<cv::Mat> &mats,
 		printf("argv[%d] = %s\n", i, argv[i]);
 	}
 
-
 	int temp;
-
-	//TIFFSetWarningHandler(NULL);
 
 	printf("\n");
 	printf("multiblend v0.6.2 (c) 2014 David Horman        http://horman.net/multiblend/\n");
@@ -132,10 +134,12 @@ int multiblend(const std::string &inputstring, const std::vector<cv::Mat> &mats,
 			char* comp=(char*)argv[i]+14;
 			if (strcmp(comp,"0")==0) g_jpegquality=0;
 			else if (atoi(comp)>0) g_jpegquality=atoi(comp);
-			//else if (_stricmp(comp,"lzw")==0) g_compression=COMPRESSION_LZW;
-			//else if (_stricmp(comp,"packbits")==0) g_compression=COMPRESSION_PACKBITS;
-			//else if (_stricmp(comp,"deflate")==0) g_compression=COMPRESSION_DEFLATE;
-			//else if (_stricmp(comp,"none")==0) g_compression=COMPRESSION_NONE;
+			#if TIFF_LIBRARY
+			else if (_stricmp(comp,"lzw")==0) g_compression=COMPRESSION_LZW;
+			else if (_stricmp(comp,"packbits")==0) g_compression=COMPRESSION_PACKBITS;
+			else if (_stricmp(comp,"none")==0) g_compression=COMPRESSION_NONE;
+			#endif
+ 			//else if (_stricmp(comp,"deflate")==0) g_compression=COMPRESSION_DEFLATE;
 			else die("unknown compression codec");
 		}
 		else if (!strcmp(argv[i],"-v") || !strcmp(argv[i],"--verbose")) g_verbosity++;
@@ -163,8 +167,9 @@ int multiblend(const std::string &inputstring, const std::vector<cv::Mat> &mats,
 					output(0,"warning: TIFF output; ignoring JPEG quality setting\n");
 					g_jpegquality=-1;
 				}
-				//else if (g_compression==-1) g_compression=COMPRESSION_NONE;
-
+				#if TIFF_LIBRARY
+				else if (g_compression==-1) g_compression=COMPRESSION_NONE;
+				#endif
 			} else {
 				die("unknown file extension!");
 			}

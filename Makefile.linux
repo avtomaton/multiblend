@@ -4,7 +4,7 @@ SDK_FOLDER = ~/sdk
 TMP_FOLDER = ./tmp
 BIN_FOLDER = ./bin
 
-DEFINES = -DUSE_PROFILER
+DEFINES = -DUSE_PROFILER -DTIFF_LIBRARY
 #------------------------------
 
 #-----------platform------------
@@ -24,7 +24,7 @@ LIBS += -L/usr/local/lib
 LIBS += -lopencv_core -lopencv_highgui
 #other libs
 #LIBS += -L/usr/local/Cellar/libpng/1.6.17/lib
-LIBS += -lpng
+LIBS += -lpng -ltiff -ltiffxx
 
 #-----------targets------------
 #OUT = $(BIN_FOLDER)/multiblend
