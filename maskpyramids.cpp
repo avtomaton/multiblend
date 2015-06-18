@@ -3,81 +3,81 @@
 #include "functions.h"
 
 void png_mask(int i) {
-  int x,y;
-  int w;
-  int h;
-  int j;
-  int l;
-  int png_height=0;
-  float* input;
-  float m;
-  intfloat ipixel;
-  png_structp png_ptr;
-  png_infop info_ptr;
-  char filename[256];
-  FILE* f;
+	int x,y;
+	int w;
+	int h;
+	int j;
+	int l;
+	int png_height=0;
+	float* input;
+	float m;
+	intfloat ipixel;
+	png_structp png_ptr;
+	png_infop info_ptr;
+	char filename[256];
+	FILE* f;
 
 #ifdef WIN32
-  sprintf_s(filename,"mb_mask%03d.png",i);
+	sprintf_s(filename,"mb_mask%03d.png",i);
 #else
-  sprintf(filename,"mb_mask%03d.png",i);
+	sprintf(filename,"mb_mask%03d.png",i);
 #endif
- 
-  h=g_workheight;
-  for (l=0; l<g_levels; l++) {
-    png_height+=h;
-    h=(h+2)>>1;
-  }
 
-  fopen_s(&f,filename, "wb");
-  if (!f) {
-    output(0,"WARNING: couldn't save mask\n");
-    return;
-  }
+	h=g_workheight;
+	for (l=0; l<g_levels; l++) {
+		png_height+=h;
+		h=(h+2)>>1;
+	}
 
-  png_ptr=png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-  if (!png_ptr) {
-    output(0,"WARNING: PNG create failed\n");
-    return;
-  }
+	fopen_s(&f,filename, "wb");
+	if (!f) {
+		output(0,"WARNING: couldn't save mask\n");
+		return;
+	}
 
-  info_ptr=png_create_info_struct(png_ptr);
-  if (!info_ptr) {
-    png_destroy_write_struct(&png_ptr,(png_infopp)NULL);
-    return;
-  }
+	png_ptr=png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	if (!png_ptr) {
+		output(0,"WARNING: PNG create failed\n");
+		return;
+	}
 
-  png_init_io(png_ptr, f);
+	info_ptr=png_create_info_struct(png_ptr);
+	if (!info_ptr) {
+		png_destroy_write_struct(&png_ptr,(png_infopp)NULL);
+		return;
+	}
 
-  png_set_IHDR(png_ptr,info_ptr,g_workwidth,png_height,8,PNG_COLOR_TYPE_GRAY,PNG_INTERLACE_NONE,PNG_COMPRESSION_TYPE_DEFAULT,PNG_FILTER_TYPE_DEFAULT);
+	png_init_io(png_ptr, f);
 
-  png_write_info(png_ptr, info_ptr);
+	png_set_IHDR(png_ptr,info_ptr,g_workwidth,png_height,8,PNG_COLOR_TYPE_GRAY,PNG_INTERLACE_NONE,PNG_COMPRESSION_TYPE_DEFAULT,PNG_FILTER_TYPE_DEFAULT);
 
-  w=g_workwidth;
-  h=g_workheight;
-  for (l=0; l<g_levels; l++) {
-    input=g_images[i].masks[l];
-    for (y=0; y<h; y++) {
-      x=0;
-      while (x<w) {
-        ipixel.f=*input++;
-        if (ipixel.i<0) { // RLE
-          m=*input++;
-          for (j=0; j<-ipixel.i; j++) ((uint8*)g_line0)[x++]=(int)(m*255+0.5);
-        } else {
-          ((uint8*)g_line0)[x++]=(int)(ipixel.f*255+0.5);
-        }
-      }
-      
-      if (y==0) while (x<g_workwidth) ((uint8*)g_line0)[x++]=128;
+	png_write_info(png_ptr, info_ptr);
 
-      png_write_row(png_ptr, (uint8*)g_line0);
-    }
-    w=(w+2)>>1;
-    h=(h+2)>>1;
-  }
+	w=g_workwidth;
+	h=g_workheight;
+	for (l=0; l<g_levels; l++) {
+		input=g_images[i].masks[l];
+		for (y=0; y<h; y++) {
+			x=0;
+			while (x<w) {
+				ipixel.f=*input++;
+				if (ipixel.i<0) { // RLE
+					m=*input++;
+					for (j=0; j<-ipixel.i; j++) ((uint8*)g_line0)[x++]=(int)(m*255+0.5);
+				} else {
+					((uint8*)g_line0)[x++]=(int)(ipixel.f*255+0.5);
+				}
+			}
 
-  fclose(f);
+			if (y==0) while (x<g_workwidth) ((uint8*)g_line0)[x++]=128;
+
+			png_write_row(png_ptr, (uint8*)g_line0);
+		}
+		w=(w+2)>>1;
+		h=(h+2)>>1;
+	}
+
+	fclose(f);
 }
 
 int squish_line(float* input, float *output, int inwidth, int outwidth) {
@@ -98,8 +98,8 @@ int squish_line(float* input, float *output, int inwidth, int outwidth) {
 		pixel.f=input[p++];
 		readsofar+=count;
 
-    if (readsofar==inwidth) { // was this the only pixel? (special case)
-		  *(int32*)&output[outp++]=-outwidth;
+		if (readsofar==inwidth) { // was this the only pixel? (special case)
+			*(int32*)&output[outp++]=-outwidth;
 			output[outp++]=pixel.f*4; // because output will be squashed with 3 other lines later
 			return p;
 		}
@@ -144,7 +144,7 @@ int squish_line(float* input, float *output, int inwidth, int outwidth) {
 
 					if (count>3) {
 						if (lastrle==pixel.f) {
-  						*(int32*)&output[outp-2]-=(count-2)>>1;
+							*(int32*)&output[outp-2]-=(count-2)>>1;
 						} else {
 							*(int32*)&output[outp++]=-((count-2)>>1);
 							output[outp++]=pixel.f*4;
@@ -179,7 +179,7 @@ int squish_line(float* input, float *output, int inwidth, int outwidth) {
 
 				outpixel=runningtotal+pixel.f;
 				if (lastrle==outpixel) {
-          *(int32*)&output[outp-2]-=1;
+					*(int32*)&output[outp-2]-=1;
 				} else {
 					output[outp++]=outpixel;
 					lastrle=-1;
@@ -187,7 +187,7 @@ int squish_line(float* input, float *output, int inwidth, int outwidth) {
 
 				if (count>2) {
 					if (lastrle==pixel.f) {
-            *(int32*)&output[outp-2]-=(count-1)>>1;
+						*(int32*)&output[outp-2]-=(count-1)>>1;
 					} else {
 						*(int32*)&output[outp++]=-((count-1)>>1);
 						output[outp++]=pixel.f*4;
@@ -202,7 +202,7 @@ int squish_line(float* input, float *output, int inwidth, int outwidth) {
 					runningtotal=pixel.f*3; // was +=pixel*2
 				}
 			} else { // non-rle
-			  readsofar++;
+				readsofar++;
 				count=1;
 
 				if (readsofar==inwidth) break;
@@ -210,7 +210,7 @@ int squish_line(float* input, float *output, int inwidth, int outwidth) {
 				outpixel=runningtotal+pixel.f;
 
 				if (lastrle==outpixel) {
-          *(int32*)&output[outp-2]-=1;
+					*(int32*)&output[outp-2]-=1;
 				} else {
 					output[outp++]=outpixel; // was pixel
 					lastrle=-1;
@@ -232,7 +232,7 @@ int squish_line(float* input, float *output, int inwidth, int outwidth) {
 	outpixel=runningtotal;
 
 	if (outpixel==lastrle) {
-    *(int*)&output[outp-2]-=1;
+		*(int*)&output[outp-2]-=1;
 	} else {
 		output[outp++]=outpixel;
 		lastrle=-1;
@@ -240,12 +240,12 @@ int squish_line(float* input, float *output, int inwidth, int outwidth) {
 
 	count=(count+1-(inwidth&1))>>1;
 	if (count>0) {
-  	if (count>1) {
-      *(int*)&output[outp++]=-count;
+		if (count>1) {
+			*(int*)&output[outp++]=-count;
 		}
-	  output[outp++]=pixel.f*4;
+		output[outp++]=pixel.f*4;
 	}
-	
+
 	return p;
 }
 
@@ -298,7 +298,7 @@ void shrink_mask(float* input, float **output_pointer, int inwidth, int inheight
 	void* swap;
 	float* output=(float*)malloc(size*sizeof(float));
 
-  input_p+=squish_line(&input[input_p],(float*)g_line0,inwidth,outwidth);
+	input_p+=squish_line(&input[input_p],(float*)g_line0,inwidth,outwidth);
 	input_p+=squish_line(&input[input_p],(float*)g_line2,inwidth,outwidth);
 	output_p+=squash_lines((float*)g_line0,(float*)g_line0,(float*)g_line2,&output[output_p],outwidth);
 	lines_read=2;
@@ -320,7 +320,7 @@ void shrink_mask(float* input, float **output_pointer, int inwidth, int inheight
 
 		if (output_p+(g_workwidth)>size) {
 			size=size<<1;
-      output=(float*)realloc(output,size*sizeof(float));
+			output=(float*)realloc(output,size*sizeof(float));
 		}
 	}
 
@@ -329,7 +329,7 @@ void shrink_mask(float* input, float **output_pointer, int inwidth, int inheight
 }
 
 void extract_top_masks() {
-  int i;
+	int i;
 	int x,y;
 	int* p=(int*)malloc(g_numimages*sizeof(int));
 	int* size=(int*)malloc(g_numimages*sizeof(int));
@@ -360,13 +360,13 @@ void extract_top_masks() {
 			} else {
 				for (i=0; i<g_numimages; i++) {
 					if (i==last_i) {
-  					((int32*)g_images[i].masks[0])[p[i]++]=-this_count;
+						((int32*)g_images[i].masks[0])[p[i]++]=-this_count;
 						g_images[i].masks[0][p[i]++]=0;
 					} else if (i==this_i) {
-  					((int32*)g_images[i].masks[0])[p[i]++]=-this_count;
+						((int32*)g_images[i].masks[0])[p[i]++]=-this_count;
 						g_images[i].masks[0][p[i]++]=1;
 					} else {
-  					((int32*)g_images[i].masks[0])[p[i]-2]-=this_count;
+						((int32*)g_images[i].masks[0])[p[i]-2]-=this_count;
 					}
 				}
 			}
@@ -392,7 +392,7 @@ void extract_top_masks() {
 }
 
 void shrink_masks() {
-  int i,l;
+	int i,l;
 	int w,h;
 	int ow,oh;
 
@@ -410,10 +410,10 @@ void shrink_masks() {
 		}
 	}
 
-  if (g_savemasks) {
-    output(1,"saving masks...\n");
-    for (i=0; i<g_numimages; i++) png_mask(i);
-  }
+	if (g_savemasks) {
+		output(1,"saving masks...\n");
+		for (i=0; i<g_numimages; i++) png_mask(i);
+	}
 }
 
 void mask_pyramids() {

@@ -3,9 +3,8 @@
 
 #include <algorithm>
 
-void go(char** argv, int input_args) {
+void go(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
 	Proftimer proftimer(&profiler, "go");
-
 	int blend_wh;
 	int i;
 	int pitch;
@@ -16,18 +15,20 @@ void go(char** argv, int input_args) {
 			fopen_s(&g_jpeg,g_output_filename,"wb");
 			if (!g_jpeg) die("couldn't open output file");
 		} else {
+			#if TIFF_LIBRARY
 			if (!g_bigtiff) g_tiff=TIFFOpen(g_output_filename,"w"); else g_tiff=TIFFOpen(g_output_filename,"w8");
 			if (!g_tiff) die("couldn't open output file");
+			#endif
 		}
 	}
 
-	if (input_args==1 && g_caching) {
+	if (mats.size()==1 && g_caching) {
 		output(1,"Only one input image; caching disabled\n");
 		g_caching=false;
 	}
 
 	timer.set();
-	load_images(argv,input_args);
+	load_images(mats, masks);
 
 	if (g_numimages==0) die("no valid input files");
 
@@ -89,7 +90,8 @@ void go(char** argv, int input_args) {
 		output(1,"writing %s...\n",g_output_filename);
 		timer.set();
 
-		if (g_jpegquality!=-1) jpeg_out(); else tiff_out();
+		//if (g_jpegquality!=-1) jpeg_out(); else tiff_out();
+		opencv_out();
 		timer.report("write");
 	}
 

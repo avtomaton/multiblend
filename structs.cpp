@@ -7,20 +7,20 @@
 
 #ifdef WIN32
 void my_timer::set() {
-  QueryPerformanceCounter(&t1);
+	QueryPerformanceCounter(&t1);
 }
 
 double my_timer::read() {
-  QueryPerformanceCounter(&t2);
-  return (double)(t2.QuadPart-t1.QuadPart)/frequency.QuadPart;
+	QueryPerformanceCounter(&t2);
+	return (double)(t2.QuadPart-t1.QuadPart)/frequency.QuadPart;
 }
 
 my_timer::my_timer() {
-  QueryPerformanceFrequency(&frequency);
+	QueryPerformanceFrequency(&frequency);
 }
 
 void my_timer::report(const char* name) {
-  if (g_timing) output(0,"%s: %.3fs\n",name,this->read());
+	if (g_timing) output(0,"%s: %.3fs\n",name,this->read());
 }
 
 #else

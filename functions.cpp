@@ -1,5 +1,6 @@
 #include "functions.h"
 #include "globals.h"
+#include  <cstdarg>
 
 void output(int level, const char* fmt, ...) {
 	va_list args;
@@ -12,7 +13,7 @@ void output(int level, const char* fmt, ...) {
 }
 
 void report_time(const char* name, double time) {
-  if (g_timing) output(0,"%s: %.3fs\n",name,time);
+	if (g_timing) output(0,"%s: %.3fs\n",name,time);
 }
 
 void clear_temp() {
@@ -55,5 +56,5 @@ void die(const char* error, ...) {
 		getchar();
 	}
 
-  exit(1);
+	exit(1);
 }

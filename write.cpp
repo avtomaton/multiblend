@@ -4,6 +4,9 @@
 
 #include <algorithm>
 
+#include <opencv2/highgui/highgui.hpp>
+
+#if JPEG_LIBRARY
 void jpeg_out() {
 	Proftimer proftimer(&profiler, "jpeg_out");
 	int x,y;
@@ -15,13 +18,13 @@ void jpeg_out() {
 	int* maskcount=(int*)malloc(g_numimages*sizeof(int));
 	int* masklimit=(int*)malloc(g_numimages*sizeof(int));
 	int* mask=(int*)malloc(g_numimages*sizeof(int));
-  struct jpeg_compress_struct cinfo;
-  struct jpeg_error_mgr jerr;
+	struct jpeg_compress_struct cinfo;
+	struct jpeg_error_mgr jerr;
 	JSAMPROW row=(JSAMPROW)malloc(g_workwidth*3);
 	uint32 temp;
 
 	cinfo.err = jpeg_std_error(&jerr);
-  jpeg_create_compress(&cinfo);
+	jpeg_create_compress(&cinfo);
 	jpeg_stdio_dest(&cinfo,g_jpeg);
 
 	cinfo.image_width=g_workwidth;
@@ -42,7 +45,7 @@ void jpeg_out() {
 				((uint8*)row)[xp++]=((uint8*)g_out_channels[2])[p];
 				p++;
 			}
-  		jpeg_write_scanlines(&cinfo,&row,1);
+			jpeg_write_scanlines(&cinfo,&row,1);
 		}
 	} else {
 		for (y=0; y<g_workheight; y++) {
@@ -101,9 +104,13 @@ void jpeg_out() {
 
 	jpeg_finish_compress(&cinfo);
 	jpeg_destroy_compress(&cinfo);
-  fclose(g_jpeg);
+	fclose(g_jpeg);
 }
+else
+void jpeg_out() {}
+#endif
 
+#if TIFF_LIBRARY
 void tiff_out() {
 	Proftimer proftimer(&profiler, "tiff_out");
 	int i,j;
@@ -120,7 +127,7 @@ void tiff_out() {
 	int x,y=0,s;
 	int stripy;
 	int rows;
-  uint16 out[1];
+	uint16 out[1];
 	uint32 temp;
 	int mul;
 
@@ -144,11 +151,11 @@ void tiff_out() {
 	} else {
 		TIFFSetField(g_tiff, TIFFTAG_SAMPLESPERPIXEL, 4);
 		out[0] = EXTRASAMPLE_UNASSALPHA;
-    TIFFSetField(g_tiff, TIFFTAG_EXTRASAMPLES, 1, &out);
+		TIFFSetField(g_tiff, TIFFTAG_EXTRASAMPLES, 1, &out);
 	}
-  TIFFSetField(g_tiff, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_RGB);
-  if (g_xres!=-1) { TIFFSetField(g_tiff, TIFFTAG_XRESOLUTION, g_xres); TIFFSetField(g_tiff, TIFFTAG_XPOSITION, (float)(g_min_left/g_xres)); }
-  if (g_yres!=-1) { TIFFSetField(g_tiff, TIFFTAG_YRESOLUTION, g_yres); TIFFSetField(g_tiff, TIFFTAG_YPOSITION, (float)(g_min_top/g_yres)); }
+	TIFFSetField(g_tiff, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_RGB);
+	if (g_xres!=-1) { TIFFSetField(g_tiff, TIFFTAG_XRESOLUTION, g_xres); TIFFSetField(g_tiff, TIFFTAG_XPOSITION, (float)(g_min_left/g_xres)); }
+	if (g_yres!=-1) { TIFFSetField(g_tiff, TIFFTAG_YRESOLUTION, g_yres); TIFFSetField(g_tiff, TIFFTAG_YPOSITION, (float)(g_min_top/g_yres)); }
 
 	if (g_images[0].geotiff.set) {
 		// if we got a georeferenced input, store the geotags in the output
@@ -159,9 +166,9 @@ void tiff_out() {
 		geotiff_write(g_tiff, &info);
 	}
 
-  strips=(int)((g_workheight+rowsperstrip-1)/rowsperstrip);
+	strips=(int)((g_workheight+rowsperstrip-1)/rowsperstrip);
 	remaining=g_workheight;
-	
+
 	for (s=0; s<strips; s++) {
 		rows=std::min(remaining,rowsperstrip);
 		strip_p=0;
@@ -287,4 +294,94 @@ void tiff_out() {
 	}
 
 	TIFFClose(g_tiff);
+}
+#else
+void tiff_out() {}
+#endif
+
+void opencv_out()
+{
+	cv::Mat outmat;
+	if (g_nomask)
+		outmat = cv::Mat(g_workheight, g_workwidth, CV_8UC3);
+	else
+		outmat = cv::Mat(g_workheight, g_workwidth, CV_8UC4);
+	int x,y;
+	int xp;
+	int p=0;
+	int i,j;
+	int m;
+	int mincount;
+	int* maskcount=(int*)malloc(g_numimages*sizeof(int));
+	int* masklimit=(int*)malloc(g_numimages*sizeof(int));
+	int* mask=(int*)malloc(g_numimages*sizeof(int));
+	uint32 temp;
+
+	if (g_nomask) {
+		for (y=0; y<g_workheight; y++) {
+			xp=0;
+			uint8_t* prow = outmat.ptr(y);
+			for (x=0; x<g_workwidth; x++) {
+				(prow)[xp++]=((uint8_t*)g_out_channels[2])[p];
+				(prow)[xp++]=((uint8_t*)g_out_channels[1])[p];
+				(prow)[xp++]=((uint8_t*)g_out_channels[0])[p];
+				p++;
+			}
+		}
+	}
+	else {
+		for (y=0; y<g_workheight; y++) {
+			for (i=0; i<g_numimages; i++) {
+				mask[i]=MASKOFF;
+				if (y>=g_images[i].ypos && y<g_images[i].ypos+g_images[i].height) {
+					maskcount[i]=g_images[i].xpos;
+					masklimit[i]=g_images[i].xpos+g_images[i].width;
+					g_images[i].binary_mask.pointer=&g_images[i].binary_mask.data[g_images[i].binary_mask.rows[y-g_images[i].ypos]];
+				} else {
+					maskcount[i]=g_workwidth;
+					masklimit[i]=g_workwidth;
+				}
+			}
+
+			x=0;
+			xp=0;
+			uint8_t* prow = outmat.ptr(y);
+			while (x<g_workwidth) {
+				m=MASKOFF;
+				mincount=g_workwidth-x;
+				for (i=0; i<g_numimages; i++) {
+					if (maskcount[i]==0) {
+						if (x<masklimit[i]) {
+							NEXTiMASK(i);
+						} else {
+							mask[i]=MASKOFF;
+							maskcount[i]=mincount;
+						}
+					}
+
+					if (maskcount[i]<mincount) mincount=maskcount[i];
+					if (mask[i]!=MASKOFF) m=MASKON;
+				}
+
+				if (m==MASKON) {
+					for (j=0; j<mincount; j++) {
+						(prow)[xp++]=((uint8_t*)g_out_channels[2])[p];
+						(prow)[xp++]=((uint8_t*)g_out_channels[1])[p];
+						(prow)[xp++]=((uint8_t*)g_out_channels[0])[p];
+						(prow)[xp++]=0xff;
+						p++;
+					}
+				} else {
+					memset(&(prow)[xp],0,mincount*4);
+
+					xp+=mincount*4;
+					p+=mincount;
+				}
+
+				for (i=0; i<g_numimages; i++) maskcount[i]-=mincount;
+				x+=mincount;
+			}
+		}
+	}
+	cv::imwrite("out.tif", outmat);
 }

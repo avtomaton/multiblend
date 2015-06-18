@@ -36,12 +36,16 @@ bool g_save_out_pyramids=false;
 bool g_dewhorl=false;
 char* g_output_filename;
 char* g_seamload_filename;
+
 png_color* g_palette;
+
 char* g_seamsave_filename;
 char* g_xor_filename;
 int g_numchannels=3;
 void** g_out_channels;
+#if TIFF_LIBRARY
 TIFF* g_tiff;
+#endif
 FILE* g_jpeg;
 int g_compression=-1;
 int g_jpegquality=-1;

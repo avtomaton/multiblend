@@ -6,6 +6,8 @@
 
 #include "structs.h"
 
+#include <opencv2/core/core.hpp>
+
 void output(int level, const char* fmt, ...);
 
 void report_time(const char* name, double time);
@@ -24,9 +26,10 @@ void clear_temp();
 void die(const char* error, ...);
 
 //geotiff
-void geotiff_register(TIFF* tif);
+/*void geotiff_register(TIFF* tif);
 int geotiff_read(TIFF* tiff, GeoTIFFInfo* info);
 int geotiff_write(TIFF * tiff, GeoTIFFInfo * info);
+*/
 
 //load images
 void trim8(void* bitmap, uint32 w, uint32 h, int bpp, int* top, int* left, int* bottom, int* right);
@@ -39,7 +42,7 @@ void inpaint8(struct_image* image, uint32* edt);
 void inpaint16(struct_image* image, uint32* edt);
 void inpaint(struct_image* image, uint32* edt);
 void tighten();
-void load_images(char** argv, int argc);
+void load_images(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks);
 
 //seaming
 void seam_png(int mode, const char* filename);
@@ -74,13 +77,17 @@ void blend();
 //write
 void jpeg_out();
 void tiff_out();
-
+void opencv_out();
 //pseudowrap
 void pseudowrap_split();
 void pseudowrap_seam();
 void pseudowrap_unsplit();
 
 //go
-void go(char** argv, int input_args);
+void go(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks);
+
+//multiblend
+void help();
+void parse(std::vector<std::string> &output, const std::string &input);
 
 #endif
