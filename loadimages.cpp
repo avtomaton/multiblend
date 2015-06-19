@@ -863,7 +863,7 @@ cv::Rect get_visible_rect(const cv::Mat &mask)
 	Proftimer proftimer_get_visible_rect(&mprofiler, "get_visible_rect");
 
 	int xl = mask.cols, yl = mask.rows, xr = 0, yr = 0;
-	for (int i = 0; i < mask.rows; ++i)
+	/*for (int i = 0; i < mask.rows; ++i)
 	{
 		for (int j = 0; j < mask.cols; ++j)
 		{
@@ -880,6 +880,68 @@ cv::Rect get_visible_rect(const cv::Mat &mask)
 			}
 		}
 	}
+	*/
+	//left
+	for (int j = 0; j < mask.cols; ++j)
+	{
+		for (int i = 0; i < mask.rows; ++i)
+		{
+			if (mask.at<uint8_t>(i, j))
+			{
+				xl = j;
+				j = mask.cols;
+				break;
+			}
+		}
+	}
+	if (xl == mask.cols)
+		die("xl == mask.cols: no visible pixels");
+	//right
+	for (int j = mask.cols - 1; j >= xl; --j)
+	{
+		for (int i = 0; i < mask.rows; ++i)
+		{
+			if (mask.at<uint8_t>(i, j))
+			{
+				xr = j;
+				j = xl - 1;
+				break;
+			}
+		}
+	}
+	if (xr == 0)
+		die("xr == 0: no visible pixels");
+	//top
+	for (int i = 0; i < mask.rows; ++i)
+	{
+		for (int j = xl; j <= xr; ++j)
+		{
+			if (mask.at<uint8_t>(i, j))
+			{
+				yl = i;
+				i = mask.rows;
+				break;
+			}
+		}
+	}
+	if (yl == mask.rows)
+		die("yl == mask.rows: no visible pixels");
+	//bottom
+	for (int i = mask.rows - 1; i >= yl; --i)
+	{
+		for (int j = xl; j <= xr; ++j)
+		{
+			if (mask.at<uint8_t>(i, j))
+			{
+				yr = i;
+				i = yl - 1;
+				break;
+			}
+		}
+	}
+	if (yr == 0)
+		die("yr == 0: no visible pixels");
+
 	cv::Rect res;
 	res.x = xl;
 	res.y = yl;
