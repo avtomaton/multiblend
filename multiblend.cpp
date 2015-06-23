@@ -32,10 +32,10 @@
 #include <stdio.h>
 
 #ifdef WIN32
-#pragma comment(lib,"libtiff.lib")
-#pragma comment(lib,"turbojpeg-static.lib")
-#pragma comment(lib,"libpng.lib")
-#pragma comment(lib,"zlib.lib")
+//#pragma comment(lib,"libtiff.lib")
+//#pragma comment(lib,"turbojpeg-static.lib")
+//#pragma comment(lib,"libpng.lib")
+//#pragma comment(lib,"zlib.lib")
 #endif
 
 void help() {
