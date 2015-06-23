@@ -1129,7 +1129,11 @@ void load_images(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &m
 	for (int i = 0; i < g_numimages; ++i) {
 		//cv::Mat matimage = cv::imread(argv[i], CV_LOAD_IMAGE_COLOR);
 		//cv::Mat mask = cv::imread(std::string("mask_") + std::string(argv[i]), CV_LOAD_IMAGE_GRAYSCALE);
+		#if _WIN32
+		sprintf_s(buf, "%d/", i);
+		#else
 		sprintf(buf, "%d/", i);
+		#endif
 		mat2struct(i, buf, mats[i], masks[i]);
 	}
 
