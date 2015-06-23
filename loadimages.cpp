@@ -216,7 +216,6 @@ void extract_opencv(const cv::Mat &mask, const cv::Mat &channels, struct_image* 
 	image->binary_mask.rows[y] = mp;
 
 	image->binary_mask.data = (uint32*)malloc(mp * sizeof(uint32));
-
 	memcpy(image->binary_mask.data,bitmap,mp * sizeof(uint32));
 }
 
@@ -277,6 +276,7 @@ void extract16(struct_image* image, void* bitmap) {
 
 	image->binary_mask.data=(uint32*)malloc(mp<<2);
 	temp=mp;
+
 	memcpy(image->binary_mask.data,bitmap,mp<<2);
 }
 
@@ -291,6 +291,7 @@ void extract(struct_image* image, void* bitmap) {
 void inpaint8(struct_image* image, uint32* edt) {
 	int x,y;
 	int c;
+
 	uint32* edt_p=edt;
 	uint32* mask_pointer=image->binary_mask.data;
 	int maskcount,mask;
@@ -847,9 +848,137 @@ void tighten() {
 	g_workheight=max_bottom;
 }
 
+
+float localize_xl(const cv::Mat &mask, float j0, float jstep, float left, float right)
+{
+	for (float j = left + j0; j < right; j += jstep)
+	{
+		for (int i = 0; i < mask.rows; ++i)
+		{
+			if (mask.at<uint8_t>(i, (int)j))
+				return (int)j;
+		}
+	}
+	return right;
+}
+
+
+float localize_yl(const cv::Mat &mask, float i0, float istep, float left, float right)
+{
+	for (float i = left + i0; i < right; i += istep)
+	{
+		for (int j = 0; j < mask.cols; ++j)
+		{
+			if (mask.at<uint8_t>((int)i, j))
+				return (int)i;
+		}
+	}
+	return right;
+}
+
+float localize_yr(const cv::Mat &mask, float i0, float istep, float left, float right)
+{
+	for (float i = right - i0; i > left; i -= istep)
+	{
+		for (int j = 0; j < mask.cols; ++j)
+		{
+			if (mask.at<uint8_t>((int)i, j))
+				return (int)i;
+		}
+	}
+	return left;
+}
+
+int search_xl(const cv::Mat &mask)
+{
+	int xl = mask.cols;
+	float j0;
+	float factor0 = 4.0f;
+	float factor1 = 4.0f;
+	float left = 0;
+	float right = mask.cols;
+	float jstep = (right - left) / factor0;
+
+	while (abs((int)right - (int)left) > 1)
+	{
+		printf("iteration\n");
+		j0 = jstep;
+		xl = localize_xl(mask, j0, jstep, left, right);
+		while (xl == right && jstep > 1)
+		{
+			j0 = jstep / 2;
+			xl = localize_xl(mask, j0, jstep, left, right);
+			jstep /= 2;
+		}
+
+		right = xl;
+		left = right - jstep;
+		jstep = (right - left) / factor1;
+	}
+	return xl;
+}
+
+int search_yl(const cv::Mat &mask, float left, float right)
+{
+	int yl;
+	float i0;
+	float factor0 = 4.0f;
+	float factor1 = 4.0f;
+
+	float istep = (right - left) / factor0;
+
+	while (abs((int)right - (int)left) > 1)
+	{
+		float istep0 = istep;
+		i0 = istep;
+		yl = localize_yl(mask, i0, istep, left, right);
+		while ((yl == right) && istep >= 0.5)
+		{
+			i0 = istep / 2;
+			yl = localize_yl(mask, i0, istep, left, right);
+			istep /= 2;
+		}
+
+		right = yl;
+		left = right - istep;
+		istep = (right - left) / factor1;
+	}
+
+	return yl;
+}
+
+int search_yr(const cv::Mat &mask, float left, float right)
+{
+	int yr;
+	float i0;
+	float factor0 = 4.0f;
+	float factor1 = 4.0f;
+	float istep = (right - left) / factor0;
+
+	while (abs((int)right - (int)left) > 1)
+	{
+		i0 = istep;
+		yr = localize_yr(mask, i0, istep, left, right);
+		while (yr == left && istep >= 0.5)
+		{
+			i0 = istep / 2;
+			yr = localize_yr(mask, i0, istep, left, right);
+			istep /= 2;
+		}
+
+		left = yr;
+		right = left + istep;
+
+		istep = (right - left) / factor1;
+	}
+	return yr;
+}
+
 cv::Rect get_visible_rect(const cv::Mat &mask)
 {
+
 	int xl = mask.cols, yl = mask.rows, xr = 0, yr = 0;
+
 	/*for (int i = 0; i < mask.rows; ++i)
 	{
 		for (int j = 0; j < mask.cols; ++j)
@@ -868,10 +997,22 @@ cv::Rect get_visible_rect(const cv::Mat &mask)
 		}
 	}
 	*/
+	//top
+	float left = 0;
+	float right = mask.rows;
+	yl = search_yl(mask, left, right);
+	if (yl == mask.rows)
+		die("yl == mask.rows: no visible pixels");
+	left = yl;
+	//bottom
+	yr = search_yr(mask, left, right);
+	if (yr == 0)
+		die("yr == 0: no visible pixels");
+
 	//left
 	for (int j = 0; j < mask.cols; ++j)
 	{
-		for (int i = 0; i < mask.rows; ++i)
+		for (int i = yl; i <= yr; ++i)
 		{
 			if (mask.at<uint8_t>(i, j))
 			{
@@ -886,7 +1027,7 @@ cv::Rect get_visible_rect(const cv::Mat &mask)
 	//right
 	for (int j = mask.cols - 1; j >= xl; --j)
 	{
-		for (int i = 0; i < mask.rows; ++i)
+		for (int i = yl; i <= yr; ++i)
 		{
 			if (mask.at<uint8_t>(i, j))
 			{
@@ -898,6 +1039,7 @@ cv::Rect get_visible_rect(const cv::Mat &mask)
 	}
 	if (xr == 0)
 		die("xr == 0: no visible pixels");
+	/*
 	//top
 	for (int i = 0; i < mask.rows; ++i)
 	{
@@ -928,7 +1070,7 @@ cv::Rect get_visible_rect(const cv::Mat &mask)
 	}
 	if (yr == 0)
 		die("yr == 0: no visible pixels");
-
+*/
 	cv::Rect res;
 	res.x = xl;
 	res.y = yl;
@@ -939,6 +1081,7 @@ cv::Rect get_visible_rect(const cv::Mat &mask)
 
 void mat2struct(int i, const std::string &filename, const cv::Mat &matimage, const cv::Mat &mask)
 {
+
 	#ifdef WIN32
 		strcpy_s(g_images[i].filename, 256, filename.c_str());
 	#else
@@ -986,7 +1129,6 @@ void load_images(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &m
 	for (int i = 0; i < g_numimages; ++i) {
 		//cv::Mat matimage = cv::imread(argv[i], CV_LOAD_IMAGE_COLOR);
 		//cv::Mat mask = cv::imread(std::string("mask_") + std::string(argv[i]), CV_LOAD_IMAGE_GRAYSCALE);
-
 		sprintf(buf, "%d/", i);
 		mat2struct(i, buf, mats[i], masks[i]);
 	}
