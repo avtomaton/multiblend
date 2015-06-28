@@ -193,7 +193,7 @@ int multiblend(const std::string &inputstring, const std::vector<cv::Mat> &mats,
 	delete[] argv;
 	return 0;
 }
-/*
+#ifdef IS_APPLICATION
 int main()
 {
 	std::string inputstring = "-d 8 --wideblend --nocrop -o ./000000001.tif";
@@ -208,4 +208,4 @@ int main()
 	}
 	return multiblend(inputstring, mats, masks);
 }
-*/
+#endif
