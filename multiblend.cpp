@@ -32,10 +32,10 @@
 #include <stdio.h>
 
 #ifdef WIN32
-#pragma comment(lib,"libtiff.lib")
-#pragma comment(lib,"turbojpeg-static.lib")
-#pragma comment(lib,"libpng.lib")
-#pragma comment(lib,"zlib.lib")
+//#pragma comment(lib,"libtiff.lib")
+//#pragma comment(lib,"turbojpeg-static.lib")
+//#pragma comment(lib,"libpng.lib")
+//#pragma comment(lib,"zlib.lib")
 #endif
 
 void help() {
@@ -197,7 +197,7 @@ int multiblend(const std::string &inputstring, const std::vector<cv::Mat> &mats,
 
 	return 0;
 }
-/*
+#ifdef IS_APPLICATION
 int main()
 {
 	std::string inputstring = "-d 8 --wideblend --nocrop -o ./000000001.tif";
@@ -212,4 +212,4 @@ int main()
 	}
 	return multiblend(inputstring, mats, masks);
 }
-*/
+#endif
