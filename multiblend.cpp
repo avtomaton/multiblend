@@ -196,16 +196,33 @@ int multiblend(const std::string &inputstring, const std::vector<cv::Mat> &mats,
 #ifdef IS_APPLICATION
 int main()
 {
-	std::string inputstring = "-d 8 --wideblend --nocrop -o ./000000001.tif";
-	std::vector<cv::Mat> mats;
-	std::vector<cv::Mat> masks;
-	for (int i  = 1; i <= 6; ++i)
+	int K = 1;
+	std::vector<std::string> base_name(K);
+	base_name[0] = "000000001";
+	/*
+	base_name[1] = "000000021";
+	base_name[2] = "000000031";
+	base_name[3] = "000000041";
+	base_name[4] = "000000051";
+	base_name[5] = "000000061";
+	base_name[6] = "000000069";
+	base_name[7] = "000000070";
+	*/
+	for (int k = 0; k < K; ++k)
 	{
-		char buf[128];
-		sprintf(buf,"000000001-%d.tif", i);
-		mats.push_back(cv::imread(buf, CV_LOAD_IMAGE_COLOR));
-		masks.push_back(cv::imread(std::string("mask_") + std::string(buf),CV_LOAD_IMAGE_GRAYSCALE));
+		std::string inputstring = std::string("-d 8 --wideblend --nocrop -o ./") + base_name[k] + std::string(".tif");
+		std::vector<cv::Mat> mats;
+		std::vector<cv::Mat> masks;
+		for (int i = 1; i <= 6; ++i)
+		{
+			char buf[128];
+			sprintf(buf, "-%d.tif", i);
+			mats.push_back(cv::imread(base_name[k] + std::string(buf), CV_LOAD_IMAGE_COLOR));
+			masks.push_back(cv::imread(std::string("mask_") + base_name[k] + std::string(buf), CV_LOAD_IMAGE_GRAYSCALE));
+		}
+		multiblend(inputstring, mats, masks);
 	}
-	return multiblend(inputstring, mats, masks);
+
+	return 0;
 }
 #endif

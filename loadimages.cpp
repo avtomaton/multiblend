@@ -862,6 +862,18 @@ float localize_xl(const cv::Mat &mask, float j0, float jstep, float left, float 
 	return right;
 }
 
+float localize_xr(const cv::Mat &mask, float j0, float jstep, float left, float right)
+{
+	for (float j = right - j0; j > left; j -= jstep)
+	{
+		for (int i = 0; i < mask.rows; ++i)
+		{
+			if (mask.at<uint8_t>(i, (int)j))
+				return (int)j;
+		}
+	}
+	return left;
+}
 
 float localize_yl(const cv::Mat &mask, float i0, float istep, float left, float right)
 {
@@ -889,38 +901,9 @@ float localize_yr(const cv::Mat &mask, float i0, float istep, float left, float 
 	return left;
 }
 
-int search_xl(const cv::Mat &mask)
+int search_l(const cv::Mat &mask, float left, float right, bool isy)
 {
-	int xl = mask.cols;
-	float j0;
-	float factor0 = 4.0f;
-	float factor1 = 4.0f;
-	float left = 0;
-	float right = mask.cols;
-	float jstep = (right - left) / factor0;
-
-	while (abs((int)right - (int)left) > 1)
-	{
-		printf("iteration\n");
-		j0 = jstep;
-		xl = localize_xl(mask, j0, jstep, left, right);
-		while (xl == right && jstep > 1)
-		{
-			j0 = jstep / 2;
-			xl = localize_xl(mask, j0, jstep, left, right);
-			jstep /= 2;
-		}
-
-		right = xl;
-		left = right - jstep;
-		jstep = (right - left) / factor1;
-	}
-	return xl;
-}
-
-int search_yl(const cv::Mat &mask, float left, float right)
-{
-	int yl;
+	int l;
 	float i0;
 	float factor0 = 4.0f;
 	float factor1 = 4.0f;
@@ -931,25 +914,33 @@ int search_yl(const cv::Mat &mask, float left, float right)
 	{
 		float istep0 = istep;
 		i0 = istep;
-		yl = localize_yl(mask, i0, istep, left, right);
-		while ((yl == right) && istep >= 0.5)
+		if (isy)
+			l = localize_yl(mask, i0, istep, left, right);
+		else
+			l = localize_xl(mask, i0, istep, left, right);
+
+		while ((l == right) && istep >= 0.5)
 		{
 			i0 = istep / 2;
-			yl = localize_yl(mask, i0, istep, left, right);
+			if (isy)
+				l = localize_yl(mask, i0, istep, left, right);
+			else
+				l = localize_xl(mask, i0, istep, left, right);
+
 			istep /= 2;
 		}
 
-		right = yl;
+		right = l;
 		left = right - istep;
 		istep = (right - left) / factor1;
 	}
 
-	return yl;
+	return l;
 }
 
-int search_yr(const cv::Mat &mask, float left, float right)
+int search_r(const cv::Mat &mask, float left, float right, bool isy)
 {
-	int yr;
+	int r;
 	float i0;
 	float factor0 = 4.0f;
 	float factor1 = 4.0f;
@@ -958,59 +949,86 @@ int search_yr(const cv::Mat &mask, float left, float right)
 	while (abs((int)right - (int)left) > 1)
 	{
 		i0 = istep;
-		yr = localize_yr(mask, i0, istep, left, right);
-		while (yr == left && istep >= 0.5)
+		if (isy)
+			r = localize_yr(mask, i0, istep, left, right);
+		else
+			r = localize_xr(mask, i0, istep, left, right);
+
+		while (r == left && istep >= 0.5)
 		{
 			i0 = istep / 2;
-			yr = localize_yr(mask, i0, istep, left, right);
+			if (isy)
+				r = localize_yr(mask, i0, istep, left, right);
+			else 
+				r = localize_xr(mask, i0, istep, left, right);
+
 			istep /= 2;
 		}
 
-		left = yr;
+		left = r;
 		right = left + istep;
 
 		istep = (right - left) / factor1;
 	}
-	return yr;
+	return r;
 }
 
 cv::Rect get_visible_rect(const cv::Mat &mask)
 {
-
-	int xl = mask.cols, yl = mask.rows, xr = 0, yr = 0;
-
-	/*for (int i = 0; i < mask.rows; ++i)
+	int xl = mask.cols, yl = mask.rows, xr = -1, yr = -1;
+	
+	int boundary_strip = 2;
+	float left, right;
+	//try top boundary
+	for (int i = 0; i < boundary_strip && i < mask.rows; ++i)
 	{
 		for (int j = 0; j < mask.cols; ++j)
 		{
 			if (mask.at<uint8_t>(i, j))
 			{
-				if (xl > j)
-					xl = j;
-				if (yl > i)
-					yl = i;
-				if (xr < j)
-					xr = j;
-				if (yr < i)
-					yr = i;
+				yl = i;
+				i = mask.rows;
+				break;
 			}
 		}
 	}
-	*/
-	//top
-	float left = 0;
-	float right = mask.rows;
-	yl = search_yl(mask, left, right);
-	if (yl == mask.rows)
-		die("yl == mask.rows: no visible pixels");
-	left = yl;
-	//bottom
-	yr = search_yr(mask, left, right);
-	if (yr == 0)
-		die("yr == 0: no visible pixels");
 
-	//left
-	for (int j = 0; j < mask.cols; ++j)
+	//try bottom boundary
+	for (int i = mask.rows - 1; (i >= mask.rows - boundary_strip) && (i >= 0); --i)
+	{
+		for (int j = 0; j < mask.cols; ++j)
+		{
+			if (mask.at<uint8_t>(i, j))
+			{
+				yr = i;
+				i = - 1;
+				break;
+			}
+		}
+	}
+
+	if (yl == mask.rows)
+	{
+		//top
+		left = 0;
+		right = mask.rows;
+		yl = search_l(mask, left, right, true);
+		if (yl == mask.rows)
+			die("yl == mask.rows: no visible pixels");
+	}
+
+	if (yr == -1)
+	{
+		//bottom
+		left = yl;
+		right = mask.rows;
+		yr = search_r(mask, left, right, true);
+		if (yr == -1)
+			die("yr == -1: no visible pixels");
+	}
+
+	//try left boundary
+	for (int j = 0; j < boundary_strip && j < mask.cols; ++j)
 	{
 		for (int i = yl; i <= yr; ++i)
 		{
@@ -1022,55 +1040,68 @@ cv::Rect get_visible_rect(const cv::Mat &mask)
 			}
 		}
 	}
-	if (xl == mask.cols)
-		die("xl == mask.cols: no visible pixels");
-	//right
-	for (int j = mask.cols - 1; j >= xl; --j)
+
+	//try right boundary
+	for (int j = mask.cols - 1; j >= mask.cols - boundary_strip && j >= 0; --j)
 	{
 		for (int i = yl; i <= yr; ++i)
 		{
 			if (mask.at<uint8_t>(i, j))
 			{
 				xr = j;
-				j = xl - 1;
+				j = - 1;
 				break;
 			}
 		}
 	}
-	if (xr == 0)
-		die("xr == 0: no visible pixels");
+
+	if (xl == mask.cols)
+	{
+		//left
+		left = 0;
+		right = mask.cols;
+		xl = search_l(mask, left, right, false);
+		if (xl == mask.cols)
+			die("xl == mask.cols: no visible pixels");
+	}
+	if (xr == -1)
+	{
+		//right
+		left = xl;
+		right = mask.cols;
+		xr = search_r(mask, left, right, false);
+		if (xr == -1)
+			die("xr == -1: no visible pixels");
+	}
 	/*
-	//top
+	int xl2 = mask.cols, yl2 = mask.rows, xr2 = -1, yr2 = -1;
 	for (int i = 0; i < mask.rows; ++i)
 	{
-		for (int j = xl; j <= xr; ++j)
+		for (int j = 0; j < mask.cols; ++j)
 		{
 			if (mask.at<uint8_t>(i, j))
 			{
-				yl = i;
-				i = mask.rows;
-				break;
+				if (xl2 > j)
+					xl2 = j;
+				if (yl2 > i)
+					yl2 = i;
+				if (xr2 < j)
+					xr2 = j;
+				if (yr2 < i)
+					yr2 = i;
 			}
 		}
 	}
-	if (yl == mask.rows)
-		die("yl == mask.rows: no visible pixels");
-	//bottom
-	for (int i = mask.rows - 1; i >= yl; --i)
-	{
-		for (int j = xl; j <= xr; ++j)
-		{
-			if (mask.at<uint8_t>(i, j))
-			{
-				yr = i;
-				i = yl - 1;
-				break;
-			}
-		}
-	}
-	if (yr == 0)
-		die("yr == 0: no visible pixels");
-*/
+
+	if (xl != xl2)
+		die("xl = %d, xl2 = %d\n", xl, xl2);
+	if (xr != xr2)
+		die("xr = %d, xr2 = %d\n", xr, xr2);
+	if (yl != yl2)
+		die("yl = %d, yl2 = %d\n", yl, yl2);
+	if (yr != yr2)
+		die("yr = %d, yr2 = %d\n", yr, yr2);
+	*/
 	cv::Rect res;
 	res.x = xl;
 	res.y = yl;
