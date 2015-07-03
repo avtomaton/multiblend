@@ -27,6 +27,17 @@ void go(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
 	}
 
 	timer.set();
+
+	g_numimages = mats.size();
+	if (mats.size() != masks.size())
+		die("mats.size() != masks.size()");
+
+	g_images = (struct_image*)malloc(g_numimages*sizeof(struct_image));
+	for (int i = 0; i < g_numimages; ++i) {
+		g_images[i].reset();
+		g_images[i].channels=(struct_channel*)malloc(g_numchannels*sizeof(struct_channel));
+		for (int c = 0; c < g_numchannels; ++c) g_images[i].channels[c].f=0;
+	}
 	load_images(mats, masks);
 
 	if (g_numimages==0) die("no valid input files");
@@ -60,6 +71,9 @@ void go(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
 		if (g_caching) die("Caching is still enabled but only one input image; multiblend can't continue!");
 		output(1,"Only one image; pseudo-wrapping mode assumed\n");
 		g_pseudowrap=true;
+
+		g_images=(struct_image*)realloc(g_images,sizeof(struct_image)*2);
+
 		pseudowrap_split();
 	}
 
@@ -103,5 +117,13 @@ void go(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
 		timer.report("write");
 	}
 
+	free(g_line0);
+	free(g_line1);
+	free(g_line2);
+
+	for (int i = 0; i < g_numimages; ++i)
+		free(g_images[i].channels);
+
+	free(g_images);
 	//	ppm_out(out_channels);
 }

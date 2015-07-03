@@ -1147,17 +1147,6 @@ void mat2struct(int i, const std::string &filename, const cv::Mat &matimage, con
 }
 
 void load_images(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
-	g_numimages = mats.size();
-	if (mats.size() != masks.size())
-		die("mats.size() != masks.size()");
-
-	g_images = (struct_image*)malloc(g_numimages*sizeof(struct_image));
-
-	for (int i = 0; i < g_numimages; ++i) {
-		I.reset();
-		I.channels=(struct_channel*)malloc(g_numchannels*sizeof(struct_channel));
-		for (int c = 0; c < g_numchannels; ++c) I.channels[c].f=0;
-	}
 	char buf[256];
 	for (int i = 0; i < g_numimages; ++i) {
 		//cv::Mat matimage = cv::imread(argv[i], CV_LOAD_IMAGE_COLOR);

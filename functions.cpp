@@ -49,7 +49,7 @@ void die(const char* error, ...) {
 	va_end(args);
 	printf("\n");
 
-	clear_temp();
+	//clear_temp();
 
 	if (g_debug) {
 		printf("\nPress Enter to end\n");
