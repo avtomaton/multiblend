@@ -138,8 +138,11 @@ void tiff_out() {
 
 	for (i=0; i<g_numimages; i++) g_images[i].binary_mask.pointer=g_images[i].binary_mask.data;
 
+	Proftimer proftimer_malloc_strip(&mprofiler, "malloc_strip");
 	void* strip=malloc((rowsperstrip*g_workwidth)<<(g_workbpp>>2));
+	proftimer_malloc_strip.stop();
 
+	Proftimer proftimer_TIFFSetField(&mprofiler, "TIFFSetField");
 	TIFFSetField(g_tiff, TIFFTAG_IMAGEWIDTH, g_workwidth);
 	TIFFSetField(g_tiff, TIFFTAG_IMAGELENGTH, g_workheight);
 	TIFFSetField(g_tiff, TIFFTAG_COMPRESSION, g_compression);
@@ -156,8 +159,10 @@ void tiff_out() {
 	TIFFSetField(g_tiff, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_RGB);
 	if (g_xres!=-1) { TIFFSetField(g_tiff, TIFFTAG_XRESOLUTION, g_xres); TIFFSetField(g_tiff, TIFFTAG_XPOSITION, (float)(g_min_left/g_xres)); }
 	if (g_yres!=-1) { TIFFSetField(g_tiff, TIFFTAG_YRESOLUTION, g_yres); TIFFSetField(g_tiff, TIFFTAG_YPOSITION, (float)(g_min_top/g_yres)); }
+	proftimer_TIFFSetField.stop();
 
 	if (g_images[0].geotiff.set) {
+		Proftimer proftimer_geotiff(&mprofiler, "geotiff");
 		// if we got a georeferenced input, store the geotags in the output
 		GeoTIFFInfo info(g_images[0].geotiff);
 		info.XGeoRef = g_min_left * g_images[0].geotiff.XCellRes;
@@ -292,7 +297,7 @@ void tiff_out() {
 		proftimer_TIFFWriteEncodedStrip.stop();
 		remaining-=rows;
 	}
-
+	Proftimer proftimer_TIFFClose(&mprofiler, "TIFFClose");
 	TIFFClose(g_tiff);
 }
 #else

@@ -165,6 +165,8 @@ void extract8(struct_image* image, void* bitmap) {
 
 void extract_opencv(const cv::Mat &mask, const cv::Mat &channels, struct_image* image, void* bitmap)
 {
+	Proftimer proftimer_extract_opencv(&mprofiler, "extract_opencv");
+
 	int x, y;
 	size_t p;
 	int mp = 0;
@@ -175,6 +177,8 @@ void extract_opencv(const cv::Mat &mask, const cv::Mat &channels, struct_image* 
 
 	p = 0;
 	for (y = 0; y < image->height; ++y) {
+		Proftimer proftimer_extract_loop(&mprofiler, "extract_loop");
+
 		x = 0;
 		image->binary_mask.rows[y] = mp;
 
@@ -195,7 +199,7 @@ void extract_opencv(const cv::Mat &mask, const cv::Mat &channels, struct_image* 
 		for (x = 1; x < image->width; x++) {
 			if (mask.at<uint8_t>(y + image->ypos, x + image->xpos)) // pixel is solid
 			{
-			cv::Vec3b pix = channels.at<cv::Vec3b>(y + image->ypos, x + image->xpos);
+				cv::Vec3b pix = channels.at<cv::Vec3b>(y + image->ypos, x + image->xpos);
 				((uint8*)image->channels[0].data)[p] = pix[2];
 				((uint8*)image->channels[1].data)[p] = pix[1];
 				((uint8*)image->channels[2].data)[p] = pix[0];
@@ -216,6 +220,7 @@ void extract_opencv(const cv::Mat &mask, const cv::Mat &channels, struct_image* 
 		((uint32*)bitmap)[mp++] = masklast<<31|maskcount;
 	}
 	image->binary_mask.rows[y] = mp;
+
 
 	image->binary_mask.data = (uint32*)malloc(mp * sizeof(uint32));
 	memcpy(image->binary_mask.data,bitmap,mp * sizeof(uint32));
@@ -970,7 +975,7 @@ int search_r(const cv::Mat &mask, float left, float right, bool isy)
 			i0 = istep / 2;
 			if (isy)
 				r = localize_yr(mask, i0, istep, left, right);
-			else 
+			else
 				r = localize_xr(mask, i0, istep, left, right);
 
 			istep /= 2;
@@ -989,7 +994,7 @@ cv::Rect get_visible_rect(const cv::Mat &mask)
 	Proftimer proftimer_get_visible_rect(&mprofiler, "get_visible_rect");
 
 	int xl = mask.cols, yl = mask.rows, xr = -1, yr = -1;
-	
+
 	int boundary_strip = 2;
 	float left, right;
 	//try top boundary
