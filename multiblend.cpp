@@ -184,7 +184,7 @@ int multiblend(const std::string &inputstring, const std::vector<cv::Mat> &mats,
 	if (!g_output_filename && !g_seamsave_filename) die("no output file specified");
 
 	go(mats, masks);
-	clear_temp();
+	//clear_temp();
 
 	if (g_debug) {
 		printf("\nPress Enter to end\n");

@@ -9,8 +9,6 @@ void pseudowrap_split() {
 	int split=g_workwidth>>1;
 	int bpp=g_images[0].bpp>>3;
 
-	g_images=(struct_image*)realloc(g_images,sizeof(struct_image)*2);
-
 	g_images[1]=g_images[0];
 
 	g_images[0].width=split;
@@ -70,7 +68,7 @@ void pseudowrap_unsplit() {
 			memcpy(line,temp,(g_workwidth-split)<<bpp);
 		}
 	}
-
+	free(temp);
 	g_images[0].xpos=0;
 	g_images[0].width=g_workwidth;
 
