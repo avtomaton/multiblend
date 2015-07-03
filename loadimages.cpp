@@ -194,7 +194,7 @@ void extract_opencv(const cv::Mat &mask, const cv::Mat &channels, struct_image* 
 		++pmask;
 		++pmat;
 		for (x = 1; x < image->width; x++, ++pmask, ++pmat) {
-			if (mask.at<uint8_t>(y + image->ypos, x + image->xpos)) // pixel is solid
+			if (*pmask) // pixel is solid
 			{
 				((uint8*)image->channels[0].data)[p] = (*pmat)[2];
 				((uint8*)image->channels[1].data)[p] = (*pmat)[1];
