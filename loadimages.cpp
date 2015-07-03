@@ -176,12 +176,14 @@ void extract_opencv(const cv::Mat &mask, const cv::Mat &channels, struct_image* 
 		x = 0;
 		image->binary_mask.rows[y] = mp;
 
-		if (mask.at<uint8_t>(y + image->ypos, x + image->xpos))  // pixel is solid
+		const uint8_t *pmask = mask.ptr<uint8_t>(y + image->ypos) + (x + image->xpos);
+		const cv::Vec3b *pmat = channels.ptr<cv::Vec3b>(y + image->ypos) + (x + image->xpos);
+
+		if (*pmask)  // pixel is solid
 		{
-			cv::Vec3b pix = channels.at<cv::Vec3b>(y + image->ypos, x + image->xpos);
-			((uint8*)image->channels[0].data)[p] = pix[2];
-			((uint8*)image->channels[1].data)[p] = pix[1];
-			((uint8*)image->channels[2].data)[p] = pix[0];
+			((uint8*)image->channels[0].data)[p] = (*pmat)[2];
+			((uint8*)image->channels[1].data)[p] = (*pmat)[1];
+			((uint8*)image->channels[2].data)[p] = (*pmat)[0];
 			masklast = 1;
 		}
 		else
@@ -189,14 +191,14 @@ void extract_opencv(const cv::Mat &mask, const cv::Mat &channels, struct_image* 
 
 		maskcount = 1;
 		p++;
-
-		for (x = 1; x < image->width; x++) {
+		++pmask;
+		++pmat;
+		for (x = 1; x < image->width; x++, ++pmask, ++pmat) {
 			if (mask.at<uint8_t>(y + image->ypos, x + image->xpos)) // pixel is solid
 			{
-			cv::Vec3b pix = channels.at<cv::Vec3b>(y + image->ypos, x + image->xpos);
-				((uint8*)image->channels[0].data)[p] = pix[2];
-				((uint8*)image->channels[1].data)[p] = pix[1];
-				((uint8*)image->channels[2].data)[p] = pix[0];
+				((uint8*)image->channels[0].data)[p] = (*pmat)[2];
+				((uint8*)image->channels[1].data)[p] = (*pmat)[1];
+				((uint8*)image->channels[2].data)[p] = (*pmat)[0];
 				maskthis = 1;
 			}
 			else
@@ -959,7 +961,7 @@ int search_r(const cv::Mat &mask, float left, float right, bool isy)
 			i0 = istep / 2;
 			if (isy)
 				r = localize_yr(mask, i0, istep, left, right);
-			else 
+			else
 				r = localize_xr(mask, i0, istep, left, right);
 
 			istep /= 2;
@@ -976,7 +978,7 @@ int search_r(const cv::Mat &mask, float left, float right, bool isy)
 cv::Rect get_visible_rect(const cv::Mat &mask)
 {
 	int xl = mask.cols, yl = mask.rows, xr = -1, yr = -1;
-	
+
 	int boundary_strip = 2;
 	float left, right;
 	//try top boundary
