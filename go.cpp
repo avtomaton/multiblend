@@ -3,6 +3,36 @@
 
 #include <algorithm>
 
+void clean_globals()
+{
+	for (int c = 0; c < g_numchannels; ++c) 
+		_aligned_free(g_out_channels[c]);
+
+	free(g_out_channels);
+
+	for (int i = 0; i < g_numimages; ++i)
+		for (int l = 0; l < g_levels; ++l) 
+			free(g_images[i].masks[l]);
+
+	free(g_seams);
+	free(g_palette);
+
+	for (int i = 0; i < g_numimages; ++i) 
+		free(g_images[i].masks);
+
+	_aligned_free(g_line2);
+	_aligned_free(g_line1);
+	_aligned_free(g_line0);
+
+	for (int i = 0; i < g_numimages; ++i)
+	{
+		free(g_images[i].binary_mask.data);
+		free(g_images[i].binary_mask.rows);
+		free(g_images[i].channels);
+	}
+	free(g_images);
+}
+
 void go(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
 	Proftimer proftimer(&mprofiler, "go");
 	int blend_wh;
@@ -29,16 +59,20 @@ void go(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
 
 	timer.set();
 
-	g_numimages = mats.size();
+	g_numimages = (int)mats.size();
+
 	if (mats.size() != masks.size())
 		die("mats.size() != masks.size()");
 
 	g_images = (struct_image*)malloc(g_numimages*sizeof(struct_image));
+
 	for (int i = 0; i < g_numimages; ++i) {
 		g_images[i].reset();
-		g_images[i].channels=(struct_channel*)malloc(g_numchannels*sizeof(struct_channel));
-		for (int c = 0; c < g_numchannels; ++c) g_images[i].channels[c].f=0;
+		g_images[i].bpp = 8;
+		g_images[i].channels = (struct_channel*)malloc(g_numchannels*sizeof(struct_channel));
+		for (int c = 0; c < g_numchannels; ++c) g_images[i].channels[c].f = 0;
 	}
+
 	load_images(mats, masks);
 
 	if (g_numimages==0) die("no valid input files");
@@ -73,8 +107,8 @@ void go(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
 		output(1,"Only one image; pseudo-wrapping mode assumed\n");
 		g_pseudowrap=true;
 
-		g_images=(struct_image*)realloc(g_images,sizeof(struct_image)*2);
-
+		//maybe memory leak
+		g_images = (struct_image*)realloc(g_images, sizeof(struct_image) * 2);
 		pseudowrap_split();
 	}
 
@@ -84,6 +118,7 @@ void go(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
 	// calculate seams
 	timer.set();
 	if (g_pseudowrap) {
+		//maybe memory leak
 		pseudowrap_seam();
 	} else {
 		seam();
@@ -99,7 +134,11 @@ void go(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
 		blend();
 		timer.report("blend");
 
-		if (g_pseudowrap) pseudowrap_unsplit();
+		if (g_pseudowrap)
+		{
+			//maybe memory leak
+			pseudowrap_unsplit();
+		}
 
 		output(1,"writing %s...\n",g_output_filename);
 		timer.set();
@@ -118,13 +157,7 @@ void go(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
 		timer.report("write");
 	}
 
-	free(g_line0);
-	free(g_line1);
-	free(g_line2);
+	clean_globals();
 
-	for (int i = 0; i < g_numimages; ++i)
-		free(g_images[i].channels);
-
-	free(g_images);
 	//	ppm_out(out_channels);
 }

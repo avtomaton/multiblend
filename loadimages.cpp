@@ -566,6 +566,8 @@ void inpaint8(struct_image* image, uint32* edt) {
 			}
 		}
 	}
+	free(p);
+	free(chan_pointers);
 }
 
 void inpaint16(struct_image* image, uint32* edt) {
@@ -832,6 +834,8 @@ void inpaint16(struct_image* image, uint32* edt) {
 			}
 		}
 	}
+	free(p);
+	free(chan_pointers);
 }
 
 void inpaint(struct_image* image, uint32* edt) {
@@ -868,7 +872,7 @@ void tighten() {
 }
 
 
-float localize_xl(const cv::Mat &mask, float j0, float jstep, float left, float right)
+int localize_xl(const cv::Mat &mask, float j0, float jstep, float left, float right)
 {
 	for (float j = left + j0; j < right; j += jstep)
 	{
@@ -878,10 +882,10 @@ float localize_xl(const cv::Mat &mask, float j0, float jstep, float left, float 
 				return (int)j;
 		}
 	}
-	return right;
+	return (int)right;
 }
 
-float localize_xr(const cv::Mat &mask, float j0, float jstep, float left, float right)
+int localize_xr(const cv::Mat &mask, float j0, float jstep, float left, float right)
 {
 	for (float j = right - j0; j > left; j -= jstep)
 	{
@@ -891,10 +895,10 @@ float localize_xr(const cv::Mat &mask, float j0, float jstep, float left, float 
 				return (int)j;
 		}
 	}
-	return left;
+	return (int)left;
 }
 
-float localize_yl(const cv::Mat &mask, float i0, float istep, float left, float right)
+int localize_yl(const cv::Mat &mask, float i0, float istep, float left, float right)
 {
 	for (float i = left + i0; i < right; i += istep)
 	{
@@ -904,10 +908,10 @@ float localize_yl(const cv::Mat &mask, float i0, float istep, float left, float 
 				return (int)i;
 		}
 	}
-	return right;
+	return (int)right;
 }
 
-float localize_yr(const cv::Mat &mask, float i0, float istep, float left, float right)
+int localize_yr(const cv::Mat &mask, float i0, float istep, float left, float right)
 {
 	for (float i = right - i0; i > left; i -= istep)
 	{
@@ -917,7 +921,7 @@ float localize_yr(const cv::Mat &mask, float i0, float istep, float left, float 
 				return (int)i;
 		}
 	}
-	return left;
+	return (int)left;
 }
 
 int search_l(const cv::Mat &mask, float left, float right, bool isy)
@@ -949,7 +953,7 @@ int search_l(const cv::Mat &mask, float left, float right, bool isy)
 			istep /= 2;
 		}
 
-		right = l;
+		right = (float)l;
 		left = right - istep;
 		istep = (right - left) / factor1;
 	}
@@ -984,7 +988,7 @@ int search_r(const cv::Mat &mask, float left, float right, bool isy)
 			istep /= 2;
 		}
 
-		left = r;
+		left = (float)r;
 		right = left + istep;
 
 		istep = (right - left) / factor1;
@@ -1032,7 +1036,7 @@ cv::Rect get_visible_rect(const cv::Mat &mask)
 	{
 		//top
 		left = 0;
-		right = mask.rows;
+		right = (float)mask.rows;
 		yl = search_l(mask, left, right, true);
 		if (yl == mask.rows)
 			die("yl == mask.rows: no visible pixels");
@@ -1041,8 +1045,8 @@ cv::Rect get_visible_rect(const cv::Mat &mask)
 	if (yr == -1)
 	{
 		//bottom
-		left = yl;
-		right = mask.rows;
+		left = (float)yl;
+		right = (float)mask.rows;
 		yr = search_r(mask, left, right, true);
 		if (yr == -1)
 			die("yr == -1: no visible pixels");
@@ -1080,7 +1084,7 @@ cv::Rect get_visible_rect(const cv::Mat &mask)
 	{
 		//left
 		left = 0;
-		right = mask.cols;
+		right = (float)mask.cols;
 		xl = search_l(mask, left, right, false);
 		if (xl == mask.cols)
 			die("xl == mask.cols: no visible pixels");
@@ -1088,8 +1092,8 @@ cv::Rect get_visible_rect(const cv::Mat &mask)
 	if (xr == -1)
 	{
 		//right
-		left = xl;
-		right = mask.cols;
+		left = (float)xl;
+		right = (float)mask.cols;
 		xr = search_r(mask, left, right, false);
 		if (xr == -1)
 			die("xr == -1: no visible pixels");
@@ -1133,7 +1137,6 @@ cv::Rect get_visible_rect(const cv::Mat &mask)
 
 void mat2struct(int i, const std::string &filename, const cv::Mat &matimage, const cv::Mat &mask)
 {
-
 	Proftimer proftimer_mat2struct(&mprofiler, "mat2struct");
 
 	#ifdef WIN32
@@ -1141,12 +1144,20 @@ void mat2struct(int i, const std::string &filename, const cv::Mat &matimage, con
 	#else
 		strncpy(g_images[i].filename, filename.c_str(), 256);
 	#endif
+
 	cv::Rect vis_rect = get_visible_rect(mask);
-	I.bpp = 8;
 	I.xpos = vis_rect.x;
 	I.ypos = vis_rect.y;
 	I.width = vis_rect.width;
 	I.height = vis_rect.height;
+
+	for (int c = 0; c < g_numchannels; ++c)
+	{
+		if (!(g_images[i].channels[c].data = (void*)malloc((g_images[i].width * g_images[i].height) << (g_images[i].bpp >> 4))))
+			die("not enough memory for image channel");
+		//free(g_images[i].channels[c].data) <=> free(pixels) in void copy_channel(int i, int c), blending.cpp
+	}
+
 	printf("vis_rect: %d, %d, %d, %d\n", vis_rect.x,vis_rect.y,vis_rect.width,vis_rect.height);
 
 	g_workwidth = std::max(g_workwidth, (int)(I.xpos + I.width));
@@ -1155,12 +1166,6 @@ void mat2struct(int i, const std::string &filename, const cv::Mat &matimage, con
 	void* untrimmed = (void*)malloc(I.width * I.height * sizeof(uint32));
 	if (!untrimmed) die("not enough memory to process images");
 
-	for (int c = 0; c < g_numchannels; ++c)
-	{
-		if (!(I.channels[c].data = (void*)malloc((I.width * I.height)<<(I.bpp>>4))))
-			die("not enough memory for image channel");
-	}
-
 	extract_opencv(mask, matimage, &I, untrimmed);
 	inpaint(&I, (uint32*)untrimmed);
 
@@ -1168,7 +1173,6 @@ void mat2struct(int i, const std::string &filename, const cv::Mat &matimage, con
 }
 
 void load_images(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
-
 	Proftimer proftimer_load_images(&mprofiler, "load_images");
 
 	char buf[256];

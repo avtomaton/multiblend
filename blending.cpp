@@ -823,9 +823,10 @@ void blend() {
 		report_time("dither",dither_time);
 		printf("\n");
 	}
-
+	
+	_aligned_free(g_dither);
 	_aligned_free(out_pyramid);
-
+	for (i=0; i<g_numimages; i++) 
+		free(g_images[i].pyramid);
 	free(g_output_pyramid);
-	for (i=0; i<g_numimages; i++) free(g_images[i].pyramid);
 }
