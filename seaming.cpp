@@ -142,6 +142,9 @@ void seam_png(int mode, const char* filename) {
 	}
 
 	fclose(f);
+	free(mask);
+	free(masklimit);
+	free(maskcount);
 }
 
 void load_seams() {
@@ -383,6 +386,9 @@ void rightdownxy() {
 		}
 		y++;
 	}
+	free(mask);
+	free(masklimit);
+	free(maskcount);
 }
 
 void leftupxy() {
@@ -520,6 +526,10 @@ void leftupxy() {
 		}
 		y--;
 	}
+
+	free(mask);
+	free(masklimit);
+	free(maskcount);
 }
 
 void simple_seam() {
