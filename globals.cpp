@@ -1,13 +1,13 @@
 #include "globals.h"
 
-void* g_line0;
-void* g_line1;
-void* g_line2;
-void* g_linet;
+void* g_line0 = NULL;
+void* g_line1 = NULL;
+void* g_line2 = NULL;
+void* g_linet = NULL;
 
-void* g_temp;
+void* g_temp = NULL;
 
-int* g_dither;
+int* g_dither = NULL;
 
 int g_numthreads;
 
@@ -32,22 +32,22 @@ bool g_pseudowrap=false;
 bool g_swap=false;
 bool g_save_out_pyramids=false;
 bool g_dewhorl=false;
-char* g_output_filename;
-char* g_seamload_filename;
+char* g_output_filename = NULL;
+char* g_seamload_filename = NULL;
 
-png_color* g_palette;
+png_color* g_palette = NULL;
 
-char* g_seamsave_filename;
-char* g_xor_filename;
+char* g_seamsave_filename = NULL;
+char* g_xor_filename = NULL;
 int g_numchannels=3;
-void** g_out_channels;
+void** g_out_channels = NULL;
 #if TIFF_LIBRARY
-TIFF* g_tiff;
+TIFF* g_tiff = NULL;
 #endif
-FILE* g_jpeg;
+FILE* g_jpeg = NULL;
 int g_compression=-1;
 int g_jpegquality=-1;
-uint32* g_seams;
+uint32* g_seams = NULL;
 bool g_timing=false;
 bool g_savemasks=false;
 bool g_nooutput=false;
@@ -55,7 +55,7 @@ bool g_caching=false;
 //void* g_cache;
 size_t g_cache_bytes=0;
 
-struct_level* g_output_pyramid;
+struct_level* g_output_pyramid = NULL;
 
 bool g_crop=true;
 bool g_debug=false;
@@ -63,6 +63,6 @@ bool g_nomask=false;
 bool g_bigtiff=false;
 bool g_bgr=false;
 
-uint32* g_edt;
+uint32* g_edt = NULL;
 
-struct_image* g_images;
+struct_image* g_images = NULL;

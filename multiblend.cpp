@@ -81,12 +81,12 @@ int multiblend(const std::string &inputstring, const std::vector<cv::Mat> &mats,
 	std::vector<std::string> args;
 	args.push_back("multiblend");
 	parse(args, inputstring);
-	int argc = args.size();
+	size_t argc = args.size();
 	const char **argv = new const char*[argc];
-	for (int i = 0; i < argc; ++i)
+	for (size_t i = 0; i < argc; ++i)
 		argv[i] = args[i].c_str();
 
-	for (int i = 0; i < argc; ++i)
+	for (size_t i = 0; i < argc; ++i)
 	{
 		printf("argv[%d] = %s\n", i, argv[i]);
 	}
@@ -103,7 +103,7 @@ int multiblend(const std::string &inputstring, const std::vector<cv::Mat> &mats,
 
 	if (argc<3) die("not enough arguments (try -h for help)");
 
-	for (int i=1; i<argc-1; i++) {
+	for (size_t i = 1; i < argc - 1; ++i) {
 		if (!strcmp(argv[i],"-d")) {
 			g_workbpp_cmd=atoi(argv[++i]);
 			if (g_workbpp_cmd!=8 && g_workbpp_cmd!=16) {
