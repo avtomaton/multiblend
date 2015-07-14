@@ -71,7 +71,7 @@ void parse(std::vector<std::string> &output, const std::string &input)
 		output.push_back(temp);
 }
 
-int multiblend(const std::string &inputstring, const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
+int multiblend(const std::string &inputstring, std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
 	Proftimer proftimer(&mprofiler, "root");
 
 	#if TIFF_LIBRARY
