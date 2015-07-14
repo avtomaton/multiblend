@@ -33,18 +33,37 @@ int geotiff_read(TIFF* tiff, GeoTIFFInfo* info);
 int geotiff_write(TIFF * tiff, GeoTIFFInfo * info);
 #endif
 
+inline float get_l2(const cv::Point &p1, const cv::Point &p2)
+{
+	return (p1.x - p2.x)*(p1.x - p2.x) + (p1.y - p2.y)*(p1.y - p2.y);
+}
+
 //load images
 void trim8(void* bitmap, uint32 w, uint32 h, int bpp, int* top, int* left, int* bottom, int* right);
 void trim16(void* bitmap, uint32 w, uint32 h, int bpp, int* top, int* left, int* bottom, int* right);
 void trim(void* bitmap, int w, int h, int bpp, int* top, int* left, int* bottom, int* right);
 void extract8(struct_image* image, void* bitmap);
+void extract_opencv(const cv::Mat &mask, const cv::Mat &channels, struct_image* image, void* bitmap);
 void extract16(struct_image* image, void* bitmap);
 void extract(struct_image* image, void* bitmap);
+void to_cvmat(cv::Mat &mat, struct_image* image);
 void inpaint8(struct_image* image, uint32* edt);
 void inpaint16(struct_image* image, uint32* edt);
 void inpaint(struct_image* image, uint32* edt);
+bool is_two_areas(const cv::Mat &mask, struct_image* image);
+void init_dist(const cv::Mat &mask, cv::Mat &dist, struct_image* image);
+void find_dist_cycle_x(const uint8_t *pmask, int *pdist, int *pdist_prev, cv::Vec3b *pmat, cv::Vec3b *pmat_prev, int tmp_xbeg, int tmp_xend);
+void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::Mat &dist);
 void tighten();
-void load_images(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks);
+int localize_xl(const cv::Mat &mask, float j0, float jstep, float left, float right);
+int localize_xr(const cv::Mat &mask, float j0, float jstep, float left, float right);
+int localize_yl(const cv::Mat &mask, float i0, float istep, float left, float right);
+int localize_yr(const cv::Mat &mask, float i0, float istep, float left, float right);
+int search_l(const cv::Mat &mask, float left, float right, bool isy);
+int search_r(const cv::Mat &mask, float left, float right, bool isy);
+cv::Rect get_visible_rect(const cv::Mat &mask);
+void mat2struct(int i, const std::string &filename, cv::Mat &matimage, const cv::Mat &mask, cv::Mat &dist);
+void load_images(std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks);
 
 //seaming
 void seam_png(int mode, const char* filename);
@@ -86,7 +105,7 @@ void pseudowrap_seam();
 void pseudowrap_unsplit();
 
 //go
-void go(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks);
+void go(std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks);
 
 //multiblend
 void help();

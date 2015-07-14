@@ -33,7 +33,7 @@ void clean_globals()
 	free(g_images);
 }
 
-void go(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
+void go(std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
 	int blend_wh;
 	int i;
 	int pitch;

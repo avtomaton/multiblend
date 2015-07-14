@@ -7,6 +7,7 @@
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 
 #include <string>
 
@@ -176,12 +177,15 @@ void extract_opencv(const cv::Mat &mask, const cv::Mat &channels, struct_image* 
 		x = 0;
 		image->binary_mask.rows[y] = mp;
 
-		if (mask.at<uint8_t>(y + image->ypos, x + image->xpos))  // pixel is solid
+		const uint8_t *pmask = mask.ptr<uint8_t>(y + image->ypos) + (x + image->xpos);
+		const cv::Vec3b *pmat = channels.ptr<cv::Vec3b>(y + image->ypos) + (x + image->xpos);
+
+		((uint8*)image->channels[0].data)[p] = (*pmat)[2];
+		((uint8*)image->channels[1].data)[p] = (*pmat)[1];
+		((uint8*)image->channels[2].data)[p] = (*pmat)[0];
+
+		if (*pmask)  // pixel is solid
 		{
-			cv::Vec3b pix = channels.at<cv::Vec3b>(y + image->ypos, x + image->xpos);
-			((uint8*)image->channels[0].data)[p] = pix[2];
-			((uint8*)image->channels[1].data)[p] = pix[1];
-			((uint8*)image->channels[2].data)[p] = pix[0];
 			masklast = 1;
 		}
 		else
@@ -189,14 +193,16 @@ void extract_opencv(const cv::Mat &mask, const cv::Mat &channels, struct_image* 
 
 		maskcount = 1;
 		p++;
+		++pmask;
+		++pmat;
 
-		for (x = 1; x < image->width; x++) {
-			if (mask.at<uint8_t>(y + image->ypos, x + image->xpos)) // pixel is solid
+		for (x = 1; x < image->width; x++, ++pmask, ++pmat) {
+			((uint8*)image->channels[0].data)[p] = (*pmat)[2];
+			((uint8*)image->channels[1].data)[p] = (*pmat)[1];
+			((uint8*)image->channels[2].data)[p] = (*pmat)[0];
+
+			if (*pmask) // pixel is solid
 			{
-			cv::Vec3b pix = channels.at<cv::Vec3b>(y + image->ypos, x + image->xpos);
-				((uint8*)image->channels[0].data)[p] = pix[2];
-				((uint8*)image->channels[1].data)[p] = pix[1];
-				((uint8*)image->channels[2].data)[p] = pix[0];
 				maskthis = 1;
 			}
 			else
@@ -283,6 +289,20 @@ void extract16(struct_image* image, void* bitmap) {
 void extract(struct_image* image, void* bitmap) {
 
 	if (image->bpp==8) extract8(image, bitmap); else extract16(image, bitmap);
+}
+
+void to_cvmat(cv::Mat &mat, struct_image* image)
+{
+	int p = 0;
+	for (int y = 0; y < image->height; ++y) {
+		cv::Vec3b *pmat = mat.ptr<cv::Vec3b>(y + image->ypos) + (image->xpos);
+		for (int x = 0; x < image->width; ++x, ++pmat, ++p)
+		{
+			(*pmat)[2] = ((uint8*)image->channels[0].data)[p];
+			(*pmat)[1] = ((uint8*)image->channels[1].data)[p];
+			(*pmat)[0] = ((uint8*)image->channels[2].data)[p];
+		}
+	}
 }
 
 #define NEXTMASK { mask=*mask_pointer++; maskcount=mask&0x7fffffff; mask=mask>>31; }
@@ -825,6 +845,190 @@ void inpaint(struct_image* image, uint32* edt) {
 	if (image->bpp==8) inpaint8(image,edt); else inpaint16(image,edt);
 }
 
+bool is_two_areas(const cv::Mat &mask, struct_image* image)
+{
+	bool two_areas = true;
+	for (int y = image->ypos; y < (image->ypos + image->height); ++y)
+	{
+		int x = image->xpos + image->width / 2;
+		if (mask.at<uint8_t>(y, x))
+		{
+			two_areas = false;
+			break;
+		}
+	}
+	return two_areas;
+}
+
+void init_dist(const cv::Mat &mask, cv::Mat &dist, struct_image* image)
+{
+	for (int y = image->ypos; y < (image->ypos + image->height); ++y)
+	{
+		const uint8_t *pmask = mask.ptr<uint8_t>(y);
+		int *pdist = dist.ptr<int>(y);
+		for (int x = image->xpos; x < (image->xpos + image->width); ++x)
+		{
+			if (pmask[x])
+				pdist[x] = 0;
+			else
+				pdist[x] = image->height + image->width;
+		}
+	}
+}
+
+void find_dist_cycle_x(const uint8_t *pmask, int *pdist, int *pdist_prev, cv::Vec3b *pmat, cv::Vec3b *pmat_prev, int tmp_xbeg, int tmp_xend)
+{
+	for (int x = tmp_xbeg; x < tmp_xend; ++x)
+	{
+		if (pmask[x])
+			continue;
+
+		if (pdist_prev[x] + 2 < pdist[x])
+		{
+			pdist[x] = pdist_prev[x] + 2;
+			pmat[x] = pmat_prev[x];
+		}
+
+		if (x != tmp_xbeg)
+		{
+			if (pdist_prev[x - 1] + 3 < pdist[x])
+			{
+				pdist[x] = pdist_prev[x - 1] + 3;
+				pmat[x] = pmat_prev[x - 1];
+			}
+		}
+		if (x != (tmp_xend - 1))
+		{
+			if (pdist_prev[x + 1] + 3 < pdist[x])
+			{
+				pdist[x] = pdist_prev[x + 1] + 3;
+				pmat[x] = pmat_prev[x + 1];
+			}
+		}
+	}
+}
+
+void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::Mat &dist)
+{
+	init_dist(mask, dist, image);
+
+	int xl = image->xpos, xr = (image->xpos + image->width);
+	bool two_areas = is_two_areas(mask, image);
+	if (two_areas)
+	{
+		xl = search_l(mask, image->xpos + image->width / 2, image->xpos + image->width, false);
+		xr = search_r(mask, image->xpos, image->xpos + image->width / 2, false) + 1;
+		//printf("xl = %d, xr = %d\n", xl, xr);
+	}
+
+	const uint8_t *pmask = NULL;
+	int *pdist = NULL;
+	int *pdist_prev = NULL;
+	cv::Vec3b *pmat = NULL;
+	cv::Vec3b *pmat_prev = NULL;
+
+	int ybeg, yend;
+	int xbeg, xend;
+
+	xbeg = image->xpos;
+	xend = image->xpos + image->width;
+
+	// top to bottom
+	ybeg = image->ypos + 1;
+	yend = image->ypos + image->height;
+	pdist_prev = dist.ptr<int>(ybeg - 1);
+	pmat_prev = mat.ptr<cv::Vec3b>(ybeg - 1);
+	for (int y = ybeg; y < yend; ++y)
+	{
+		pmask = mask.ptr<uint8_t>(y);
+		pdist = dist.ptr<int>(y);
+		pmat = mat.ptr<cv::Vec3b>(y);
+
+		if (two_areas)
+		{
+			find_dist_cycle_x(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xr);
+			find_dist_cycle_x(pmask, pdist, pdist_prev, pmat, pmat_prev, xl, xend);
+		}
+		else
+		{
+			find_dist_cycle_x(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xend);
+		}
+
+		pdist_prev = pdist;
+		pmat_prev = pmat;
+	}
+
+	// bottom to top
+	ybeg = image->ypos + image->height - 1 - 1;
+	yend = image->ypos;
+	pdist_prev = dist.ptr<int>(ybeg + 1);
+	pmat_prev = mat.ptr<cv::Vec3b>(ybeg + 1);
+	for (int y = ybeg; y >= yend; --y)
+	{
+		pmask = mask.ptr<uint8_t>(y);
+		pdist = dist.ptr<int>(y);
+		pmat = mat.ptr<cv::Vec3b>(y);
+		
+		if (two_areas)
+		{
+			find_dist_cycle_x(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xr);
+			find_dist_cycle_x(pmask, pdist, pdist_prev, pmat, pmat_prev, xl, xend);
+		}
+		else
+		{
+			find_dist_cycle_x(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xend);
+		}
+
+		pdist_prev = pdist;
+		pmat_prev = pmat;
+	}
+
+	ybeg = image->ypos;
+	yend = image->ypos + image->height;
+
+	//left to right
+	xbeg = image->xpos + 1;
+	xend = xr;
+	for (int y = ybeg; y < yend; ++y)
+	{
+		pmask = mask.ptr<uint8_t>(y);
+		pdist = dist.ptr<int>(y);
+		pmat = mat.ptr<cv::Vec3b>(y);
+		for (int x = xbeg; x < xend; ++x)
+		{
+			if (pmask[x])
+				continue;
+
+			if (pdist[x - 1] + 2 < pdist[x])
+			{
+				pdist[x] = pdist[x - 1] + 2;
+				pmat[x] = pmat[x - 1];
+			}
+		}
+	}
+
+	//right to left
+	xbeg = (image->xpos + image->width - 1) - 1;
+	xend = xl;
+	for (int y = ybeg; y < yend; ++y)
+	{
+		pmask = mask.ptr<uint8_t>(y);
+		pdist = dist.ptr<int>(y);
+		pmat = mat.ptr<cv::Vec3b>(y);
+		for (int x = xbeg; x >= xend; --x)
+		{
+			if (pmask[x])
+				continue;
+
+			if (pdist[x + 1] + 2 < pdist[x])
+			{
+				pdist[x] = pdist[x + 1] + 2;
+				pmat[x] = pmat[x + 1];
+			}
+		}
+	}
+}
+
 void tighten() {
 
 	int i;
@@ -851,7 +1055,6 @@ void tighten() {
 	g_workwidth=max_right;
 	g_workheight=max_bottom;
 }
-
 
 int localize_xl(const cv::Mat &mask, float j0, float jstep, float left, float right)
 {
@@ -1114,7 +1317,7 @@ cv::Rect get_visible_rect(const cv::Mat &mask)
 	return res;
 }
 
-void mat2struct(int i, const std::string &filename, const cv::Mat &matimage, const cv::Mat &mask)
+void mat2struct(int i, const std::string &filename, cv::Mat &matimage, const cv::Mat &mask, cv::Mat &dist)
 {
 	#ifdef WIN32
 		strcpy_s(g_images[i].filename, 256, filename.c_str());
@@ -1143,15 +1346,24 @@ void mat2struct(int i, const std::string &filename, const cv::Mat &matimage, con
 	void* untrimmed = (void*)malloc(I.width * I.height * sizeof(uint32));
 	if (!untrimmed) die("not enough memory to process images");
 
+	inpaint_opencv(matimage, mask, &I, dist);
 	extract_opencv(mask, matimage, &I, untrimmed);
-	inpaint(&I, (uint32*)untrimmed);
+	//inpaint(&I, (uint32*)untrimmed);
+	
+	/*
+	cv::Mat inp_mat = matimage.clone();
+	to_cvmat(inp_mat, &I);
+	std::string out_inpaint = std::string("J:\\git\\multiblend\\multiblend\\x64\\ReleaseApp\\") + std::to_string(i) + std::string("_after_inpaint.png");
+	cv::imwrite(out_inpaint, inp_mat);
+	*/
 
 	free(untrimmed);
 }
 
-void load_images(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
-
+void load_images(std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
 	char buf[256];
+
+	cv::Mat dist(mats[0].size(), CV_32S);
 	for (int i = 0; i < g_numimages; ++i) {
 		//cv::Mat matimage = cv::imread(argv[i], CV_LOAD_IMAGE_COLOR);
 		//cv::Mat mask = cv::imread(std::string("mask_") + std::string(argv[i]), CV_LOAD_IMAGE_GRAYSCALE);
@@ -1160,7 +1372,7 @@ void load_images(const std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &m
 		#else
 		sprintf(buf, "%d/", i);
 		#endif
-		mat2struct(i, buf, mats[i], masks[i]);
+		mat2struct(i, buf, mats[i], masks[i], dist);
 	}
 
 	if (g_crop) tighten();
