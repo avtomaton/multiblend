@@ -3,6 +3,9 @@
 #include "defines.h"
 
 #include <algorithm>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 
 void seam_png(int mode, const char* filename) {
 	int x;
@@ -209,10 +212,12 @@ void load_seams() {
 	g_seams=(uint32*)realloc(g_seams,p*sizeof(uint32));
 }
 
-#define EDT_MAX 0xfffffbff
+#define EDT_MAX 0xfffffbff 
+//11111111 11111111 11111100 11111111
 #define VALMASKED(x) (x|mask[x&0xff])
 
-void rightdownxy() {
+void rightdownxy() 
+{
 	int i;
 	int x;
 	int y;
@@ -263,7 +268,7 @@ void rightdownxy() {
 				if (maskcount[i]<mincount) mincount=maskcount[i];
 				if (mask[i]!=MASKOFF) {
 					xorcount++;
-//					xorimage=i;
+					//xorimage=i;
 				}
 			}
 
@@ -271,8 +276,9 @@ void rightdownxy() {
 
 			if (xorcount==1) x=stop;
 			else {
-// if we're on the top line:
-				if (y==0) {
+				// if we're on the top line:
+				if (y==0) 
+				{
 					if (x==0) x=1;
 					while (x<stop) {
 						bestval=line[x];
@@ -292,8 +298,10 @@ void rightdownxy() {
 
 						line[x++]=bestval;
 					}
-				} else {
-// if we're not on the top line
+				} 
+				else 
+				{
+					// if we're not on the top line
 					if (x==0) {
 						testval=VALMASKED(line[-g_workwidth])+(3<<8);
 						bestval=std::min(line[x],testval);
@@ -319,8 +327,8 @@ void rightdownxy() {
 						lastpixel=true;
 					}
 
-/* abc
-	 dx  */
+					/* abc
+					 dx  */
 					if (x<stop) {
 						a=VALMASKED(line[-g_workwidth+x-1])+(4<<8);
 						b=VALMASKED(line[-g_workwidth+x])+(3<<8);
@@ -396,131 +404,163 @@ void leftupxy() {
 	int x,y;
 	int xorcount;
 	int xorimage;
-	int mincount=0;
+	int mincount = 0;
 	int stop;
 	uint32 temp;
-	int* maskcount=(int*)malloc(g_numimages*sizeof(int));
-	int* masklimit=(int*)malloc(g_numimages*sizeof(int));
-	int* mask=(int*)malloc(0x100*sizeof(int));
-	bool lastpixel=false;
+	int* maskcount = (int*)malloc(g_numimages*sizeof(int));
+	int* masklimit = (int*)malloc(g_numimages*sizeof(int));
+	int* mask = (int*)malloc(0x100*sizeof(int));
+	bool lastpixel = false;
 	uint32* line;
 	uint32 bestval,testval;
 	uint32 a,b,c,d;
 
-	mask[255]=MASKOFF;
+	mask[255] = MASKOFF;
 
-	y=g_workheight-1;
-	while (y>=0) {
-		line=&g_edt[y*g_workwidth];
-
-		for (i=0; i<g_numimages; i++) {
-			mask[i]=MASKOFF;
-			if (y>=g_images[i].ypos && y<g_images[i].ypos+g_images[i].height) {
-				maskcount[i]=g_workwidth-(g_images[i].xpos+g_images[i].width);
-				masklimit[i]=g_images[i].xpos;
-				g_images[i].binary_mask.pointer=&g_images[i].binary_mask.data[g_images[i].binary_mask.rows[y-g_images[i].ypos+1]]; // point to END of line
-			} else {
+	y = g_workheight - 1;
+	while (y >= 0) 
+	{
+		line = &g_edt[y*g_workwidth];
+		// set maskcount, masklimit, binary_mask.pointer
+		for (i = 0; i < g_numimages; i++) 
+		{
+			mask[i] = MASKOFF;
+			if (y >= g_images[i].ypos && y < g_images[i].ypos + g_images[i].height) 
+			{
+				maskcount[i] = g_workwidth - (g_images[i].xpos + g_images[i].width);
+				masklimit[i] = g_images[i].xpos;
+				g_images[i].binary_mask.pointer = &g_images[i].binary_mask.data[g_images[i].binary_mask.rows[y - g_images[i].ypos + 1]]; // point to END of line
+			} 
+			else 
+			{
 				maskcount[i]=g_workwidth;
 				masklimit[i]=g_workwidth;
 			}
 		}
 
-		x=g_workwidth-1;
-		while (x>=0) {
-			mincount=(x+1);
-			xorcount=0;
-			for (i=0; i<g_numimages; i++) {
-				if (maskcount[i]==0) {
-					if (x>=masklimit[i]) {
-						PREViMASK(i);
-					} else {
-						mask[i]=MASKOFF;
-						maskcount[i]=mincount;
+		x = g_workwidth - 1;
+		while (x >= 0) 
+		{
+			mincount = (x + 1); // {0,1,2,3,4} , count = 4 + 1
+			xorcount = 0;
+			for (i = 0; i < g_numimages; i++) 
+			{
+				if (maskcount[i] == 0) 
+				{
+					if (x >= masklimit[i]) 
+					{
+						PREViMASK(i); //if end of line [ ][ ][ ][ ][ ]. --> [ ][ ][ ][ ].[*], get mask, get maskcount
+					}
+					else 
+					{
+						mask[i] = MASKOFF;
+						maskcount[i] = mincount;
 					}
 				}
 
-				if (maskcount[i]<mincount) mincount=maskcount[i];
-				if (mask[i]!=MASKOFF) {
+				if (maskcount[i] < mincount) 
+					mincount = maskcount[i];
+				if (mask[i] != MASKOFF) 
+				{
 					xorcount++;
-					xorimage=i;
+					xorimage = i;
 				}
 			}
 
-			stop=x-mincount;
+			stop = x - mincount;
 
-			if (xorcount==1) {
-				g_images[xorimage].seampresent=true;
-				while (x>stop) line[x--]=xorimage;
-			} else {
-// if we're on the bottom line:
-				if (y==g_workheight-1) {
-					if (x==g_workwidth-1) {
-						while (x>stop) line[x--]=EDT_MAX;
-					} else
-					while (x>stop) {
-						testval=VALMASKED(line[x+1])+(3<<8);
-						line[x--]=std::min(testval,EDT_MAX);
+			if (xorcount == 1) 
+			{
+				g_images[xorimage].seampresent = true;
+				while (x > stop) 
+					line[x--] = xorimage;
+			} 
+			else 
+			{
+				// if we're on the bottom line:
+				if (y == g_workheight - 1) 
+				{
+					if (x == g_workwidth - 1) 
+					{
+						while (x > stop) line[x--] = EDT_MAX;
+					} 
+					else
+					{
+						while (x > stop)
+						{
+							testval = VALMASKED(line[x + 1]) + (3 << 8);
+							line[x--] = std::min(testval, EDT_MAX);
+						}
 					}
-				} else {
-// if we're not on the bottom line
-					if (x==g_workwidth-1) {
-						testval=VALMASKED(line[+g_workwidth+x])+(3<<8);
-						bestval=std::min(EDT_MAX,testval);
+				} 
+				else 
+				{
+					// if we're not on the bottom line
+					if (x == g_workwidth - 1) 
+					{
+						testval = VALMASKED(line[+g_workwidth+x])+(3<<8);
+						bestval = std::min(EDT_MAX,testval);
 
-						testval=VALMASKED(line[+g_workwidth+x-1])+(4<<8);
-						if (testval<bestval) bestval=testval;
+						testval = VALMASKED(line[+g_workwidth+x-1])+(4<<8);
+						if (testval < bestval) 
+							bestval = testval;
 
-						line[x--]=bestval;
-					}
-
-					if (stop==-1) {
-						stop=0;
-						lastpixel=true;
-					}
-
-/*  xd
-	 abc */
-					if (x>stop) {
-						b=VALMASKED(line[+g_workwidth+x])+(3<<8);
-						c=VALMASKED(line[+g_workwidth+x+1])+(4<<8);
-						d=VALMASKED(line[x+1])+(3<<8);
-					}
-
-					while (x>stop) { // main bit
-						temp=line[+g_workwidth+x-1];
-						a=VALMASKED(temp)+(4<<8);
-
-						bestval=EDT_MAX;
-						if (a<bestval) bestval=a;
-						if (b<bestval) bestval=b;
-						if (c<bestval) bestval=c;
-						if (d<bestval) bestval=d;
-
-						line[x--]=bestval;
-
-						c=b+(1<<8);
-						b=a-(1<<8);
-						d=bestval+(3<<8);
+						line[x--] = bestval;
 					}
 
-					if (lastpixel) {
-						testval=VALMASKED(line[+g_workwidth+x])+(3<<8);
-						bestval=std::min(EDT_MAX,testval);
+					if (stop == -1) 
+					{
+						stop = 0;
+						lastpixel = true;
+					}
 
-						testval=VALMASKED(line[+g_workwidth+x+1])+(4<<8);
-						bestval=std::min(bestval,testval);
+					/*  xd
+					 abc */
+					if (x > stop) 
+					{
+						b = VALMASKED(line[+g_workwidth+x])+(3<<8);
+						c = VALMASKED(line[+g_workwidth+x+1])+(4<<8);
+						d = VALMASKED(line[x+1])+(3<<8);
+					}
 
-						testval=VALMASKED(line[x+1])+(3<<8);
-						bestval=std::min(bestval,testval);
+					while (x>stop) 
+					{ // main bit
+						temp = line[+g_workwidth+x-1];
+						a = VALMASKED(temp)+(4<<8);
 
-						line[x--]=bestval;
+						bestval = EDT_MAX;
+						if (a<bestval) bestval = a;
+						if (b<bestval) bestval = b;
+						if (c<bestval) bestval = c;
+						if (d<bestval) bestval = d;
+
+						line[x--] = bestval;
+
+						c = b + (1<<8);
+						b = a - (1<<8);
+						d = bestval + (3<<8);
+					}
+
+					if (lastpixel) 
+					{
+						testval = VALMASKED(line[+g_workwidth+x])+(3<<8);
+						bestval = std::min(EDT_MAX,testval);
+
+						testval = VALMASKED(line[+g_workwidth+x+1])+(4<<8);
+						bestval = std::min(bestval,testval);
+
+						testval = VALMASKED(line[x+1]) + (3<<8);
+						bestval = std::min(bestval, testval);
+
+						line[x--] = bestval;
 
 						lastpixel=false;
 					}
 				}
 			}
 
-			for (i=0; i<g_numimages; i++) {
+			for (i=0; i<g_numimages; i++) 
+			{
 				maskcount[i]-=mincount;
 			}
 		}
@@ -530,6 +570,156 @@ void leftupxy() {
 	free(mask);
 	free(masklimit);
 	free(maskcount);
+}
+
+void init_seamdist(cv::Mat &dist, cv::Mat &nums, const std::vector<cv::Mat> &masks)
+{
+	std::vector<const uint8_t*> pmasks(masks.size());
+
+	for (int y = 0; y < dist.rows; ++y)
+	{
+		int* pdist = dist.ptr<int>(y);
+		uint8_t* pnums = nums.ptr<uint8_t>(y);
+		for (int i = 0; i < masks.size(); ++i)
+			pmasks[i] = masks[i].ptr<uint8_t>(y);
+
+		for (int x = 0; x < dist.cols; ++x)
+		{
+			int count = 0;
+			int num = 0;
+			for (int i = 0; i < masks.size(); ++i)
+				if (pmasks[i][x]) //1-visible
+				{
+					++count;
+					num = i;
+				}
+			if (count == 1)
+			{
+				pdist[x] = 0;
+				pnums[x] = num;
+			}
+			else
+			{
+				pdist[x] = dist.cols + dist.rows;
+				pnums[x] = 0xff;
+			}
+		}
+	}
+}
+
+void set_g_edt_opencv(cv::Mat &dist, cv::Mat &nums, const std::vector<cv::Mat> &masks, float overlap_of_pano_split = 1.1)
+{
+	dist = cv::Mat(g_workheight, g_workwidth, CV_32S);
+	nums = cv::Mat(g_workheight, g_workwidth, CV_8U);
+	
+	init_seamdist(dist, nums, masks);
+
+	int N = masks.size();
+	const uint8_t* pmask;
+	int* pdist;
+	int* pdist_prev;
+	uint8_t* pnums;
+	uint8_t* pnums_prev;
+
+	int ybeg, yend;
+	int xbeg, xend;
+
+	xbeg = 0;
+	xend = g_workwidth;
+
+	// top to bottom
+	ybeg = 1;
+	yend = g_workheight;
+	pdist_prev = dist.ptr<int>(ybeg - 1);
+	pnums_prev = nums.ptr<uint8_t>(ybeg - 1);
+	for (int y = ybeg; y < yend; ++y)
+	{
+		pdist = dist.ptr<int>(y);
+		pnums = nums.ptr<uint8_t>(y);
+		for (int i = 0; i < N; ++i)
+		{
+			pmask = masks[i].ptr<uint8_t>(y);
+			find_distances_cycle_x<uint8_t>(pmask, pdist, pdist_prev, pnums, pnums_prev, xbeg, xend, true, true);
+		}
+		pdist_prev = pdist;
+		pnums_prev = pnums;
+	}
+
+	// bottom to top
+	ybeg = g_workheight - 1 - 1;
+	yend = 0;
+	pdist_prev = dist.ptr<int>(ybeg + 1);
+	pnums_prev = nums.ptr<uint8_t>(ybeg + 1);
+	for (int y = ybeg; y >= yend; --y)
+	{
+		pdist = dist.ptr<int>(y);
+		pnums = nums.ptr<uint8_t>(y);
+		for (int i = 0; i < N; ++i)
+		{
+			pmask = masks[i].ptr<uint8_t>(y);
+			find_distances_cycle_x<uint8_t>(pmask, pdist, pdist_prev, pnums, pnums_prev, xbeg, xend, true, true);
+		}
+		pdist_prev = pdist;
+		pnums_prev = pnums;
+	}
+
+	ybeg = 0;
+	yend = g_workheight;
+	int offset;
+	//left to right
+	xbeg = 1;
+	xend = g_workwidth;
+	offset = -1;
+	for (int y = ybeg; y < yend; ++y)
+	{
+		pdist = dist.ptr<int>(y);
+		pnums = nums.ptr<uint8_t>(y);
+		for (int i = 0; i < N; ++i)
+		{
+			pmask = masks[i].ptr<uint8_t>(y);
+			for (int x = xbeg; x < overlap_of_pano_split * xend; ++x) //overlap
+			{
+				int mx = x % g_workwidth;
+				int mxp = (x + offset) % g_workwidth;
+				
+				if (!pmask[mx])
+					continue;
+				if (pdist[mxp] + 2 < pdist[mx])
+				{
+					pdist[mx] = pdist[mxp] + 2;
+					pnums[mx] = pnums[mxp];
+				}
+			}
+		}
+	}
+
+	//right to left
+	xbeg = (g_workwidth - 1) - 1;
+	xend = 0;
+	offset = 1;
+	for (int y = ybeg; y < yend; ++y)
+	{
+		pdist = dist.ptr<int>(y);
+		pnums = nums.ptr<uint8_t>(y);
+		for (int i = 0; i < N; ++i) 
+		{
+			pmask = masks[i].ptr<uint8_t>(y);
+			for (int x = overlap_of_pano_split * xbeg; x >= xend; --x) //overlap
+			{
+				int mx = x % g_workwidth;
+				int mxp = (x + offset) % g_workwidth;
+
+				if (!pmask[mx])
+					continue;
+
+				if (pdist[mxp] + 2 < pdist[mx])
+				{
+					pdist[mx] = pdist[mxp] + 2;
+					pnums[mx] = pnums[mxp];
+				}
+			}
+		}
+	}
 }
 
 void simple_seam() {
@@ -586,12 +776,12 @@ void make_seams() {
 
 	for (y=0; y<g_workheight; y++) {
 		line=&g_edt[y*g_workwidth];
-		a=line[0]&0xff;
+		a=line[0]&0xff; // number of image
 		x=1;
 		while (x<g_workwidth) {
 			b=line[x++]&0xff;
 			if (b!=a) {
-				g_seams[p++]=count<<8|a;
+				g_seams[p++] = count<<8|a;
 				count=1;
 				a=b;
 			} else {
@@ -612,7 +802,29 @@ void make_seams() {
 	g_seams=(uint32*)realloc(g_seams,p*sizeof(uint32));
 }
 
-void seam() {
+void write_g_edt()
+{
+	cv::Mat mat_mask(g_workheight, g_workwidth, CV_8U);
+	cv::Mat mat_dist(g_workheight, g_workwidth, CV_8U);
+	cv::Mat mat_image(g_workheight, g_workwidth, CV_8U);
+	int p = 0;
+	for (int y = 0; y < g_workheight; ++y)
+	{
+		for (int x = 0; x < g_workwidth; ++x)
+		{
+			uint32 tmp = g_edt[p];
+			mat_mask.at<uint8_t>(y, x) = (tmp >> 31) * 255;
+			mat_dist.at<uint8_t>(y, x) = ((tmp >> 8) & 0xffff) / 7;
+			mat_image.at<uint8_t>(y, x) = (tmp & 0xf) * 30;
+			++p;
+		}
+	}
+	cv::imwrite("seam_mask.png", mat_mask);
+	cv::imwrite("seam_dist.png", mat_dist);
+	cv::imwrite("seam_image.png", mat_image);
+}
+
+void seam(const std::vector<cv::Mat> &masks) {
 	int i;
 
 	output(1,"seaming...\n");
@@ -628,6 +840,15 @@ void seam() {
 
 			leftupxy();
 			rightdownxy();
+
+			cv::Mat dist;
+			cv::Mat nums;
+			//set_g_edt_opencv(dist, nums, masks);
+
+			//cv::imwrite("seam_dist_opencv.png", dist / 5);
+			//cv::imwrite("seam_image_opencv.png", nums * 30);
+
+			//write_g_edt();
 			make_seams();
 
 			_aligned_free(g_edt);

@@ -38,6 +38,57 @@ inline float get_l2(const cv::Point &p1, const cv::Point &p2)
 	return (p1.x - p2.x)*(p1.x - p2.x) + (p1.y - p2.y)*(p1.y - p2.y);
 }
 
+template<typename T>
+void find_distances_cycle_x(const uint8_t *pmask, int *pdist, int *pdist_prev, T *pnums, T *pnums_prev, int tmp_xbeg, int tmp_xend, bool invert_mask, bool is_closed_x, int l_straight = 2, int l_diag = 3)
+{
+	for (int x = tmp_xbeg; x < tmp_xend; ++x)
+	{
+		if (invert_mask ? !pmask[x] : pmask[x])
+			continue;
+
+		if (pdist_prev[x] + l_straight < pdist[x])
+		{
+			pdist[x] = pdist_prev[x] + l_straight;
+			pnums[x] = pnums_prev[x];
+		}
+
+		if (x != tmp_xbeg)
+		{
+			if (pdist_prev[x - 1] + l_diag < pdist[x])
+			{
+				pdist[x] = pdist_prev[x - 1] + l_diag;
+				pnums[x] = pnums_prev[x - 1];
+			}
+		}
+		else if (is_closed_x)
+		{
+			if (pdist_prev[tmp_xend - 1] + l_diag < pdist[x])
+			{
+				pdist[x] = pdist_prev[tmp_xend - 1] + l_diag;
+				pnums[x] = pnums_prev[tmp_xend - 1];
+			}
+		}
+
+		if (x != (tmp_xend - 1))
+		{
+			if (pdist_prev[x + 1] + l_diag < pdist[x])
+			{
+				pdist[x] = pdist_prev[x + 1] + l_diag;
+				pnums[x] = pnums_prev[x + 1];
+			}
+		}
+		else if (is_closed_x)
+		{
+			if (pdist_prev[tmp_xbeg] + l_diag < pdist[x])
+			{
+				pdist[x] = pdist_prev[tmp_xbeg] + l_diag;
+				pnums[x] = pnums_prev[tmp_xbeg];
+			}
+		}
+	}
+}
+
+
 //load images
 void trim8(void* bitmap, uint32 w, uint32 h, int bpp, int* top, int* left, int* bottom, int* right);
 void trim16(void* bitmap, uint32 w, uint32 h, int bpp, int* top, int* left, int* bottom, int* right);
@@ -52,7 +103,6 @@ void inpaint16(struct_image* image, uint32* edt);
 void inpaint(struct_image* image, uint32* edt);
 bool is_two_areas(const cv::Mat &mask, struct_image* image);
 void init_dist(const cv::Mat &mask, cv::Mat &dist, struct_image* image);
-void find_dist_cycle_x(const uint8_t *pmask, int *pdist, int *pdist_prev, cv::Vec3b *pmat, cv::Vec3b *pmat_prev, int tmp_xbeg, int tmp_xend);
 void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::Mat &dist);
 void tighten();
 int localize_xl(const cv::Mat &mask, float j0, float jstep, float left, float right);
@@ -72,7 +122,7 @@ void rightdownxy();
 void leftupxy();
 void simple_seam();
 void make_seams();
-void seam();
+void seam(const std::vector<cv::Mat> &masks);
 
 //maskpyramids
 void png_mask(int i);

@@ -876,38 +876,6 @@ void init_dist(const cv::Mat &mask, cv::Mat &dist, struct_image* image)
 	}
 }
 
-void find_dist_cycle_x(const uint8_t *pmask, int *pdist, int *pdist_prev, cv::Vec3b *pmat, cv::Vec3b *pmat_prev, int tmp_xbeg, int tmp_xend)
-{
-	for (int x = tmp_xbeg; x < tmp_xend; ++x)
-	{
-		if (pmask[x])
-			continue;
-
-		if (pdist_prev[x] + 2 < pdist[x])
-		{
-			pdist[x] = pdist_prev[x] + 2;
-			pmat[x] = pmat_prev[x];
-		}
-
-		if (x != tmp_xbeg)
-		{
-			if (pdist_prev[x - 1] + 3 < pdist[x])
-			{
-				pdist[x] = pdist_prev[x - 1] + 3;
-				pmat[x] = pmat_prev[x - 1];
-			}
-		}
-		if (x != (tmp_xend - 1))
-		{
-			if (pdist_prev[x + 1] + 3 < pdist[x])
-			{
-				pdist[x] = pdist_prev[x + 1] + 3;
-				pmat[x] = pmat_prev[x + 1];
-			}
-		}
-	}
-}
-
 void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::Mat &dist)
 {
 	init_dist(mask, dist, image);
@@ -946,12 +914,12 @@ void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::
 
 		if (two_areas)
 		{
-			find_dist_cycle_x(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xr);
-			find_dist_cycle_x(pmask, pdist, pdist_prev, pmat, pmat_prev, xl, xend);
+			find_distances_cycle_x<cv::Vec3b>(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xr, false, false);
+			find_distances_cycle_x<cv::Vec3b>(pmask, pdist, pdist_prev, pmat, pmat_prev, xl, xend, false, false);
 		}
 		else
 		{
-			find_dist_cycle_x(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xend);
+			find_distances_cycle_x<cv::Vec3b>(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xend, false, false);
 		}
 
 		pdist_prev = pdist;
@@ -971,12 +939,12 @@ void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::
 		
 		if (two_areas)
 		{
-			find_dist_cycle_x(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xr);
-			find_dist_cycle_x(pmask, pdist, pdist_prev, pmat, pmat_prev, xl, xend);
+			find_distances_cycle_x<cv::Vec3b>(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xr, false, false);
+			find_distances_cycle_x<cv::Vec3b>(pmask, pdist, pdist_prev, pmat, pmat_prev, xl, xend, false, false);
 		}
 		else
 		{
-			find_dist_cycle_x(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xend);
+			find_distances_cycle_x<cv::Vec3b>(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xend, false, false);
 		}
 
 		pdist_prev = pdist;
@@ -1350,12 +1318,12 @@ void mat2struct(int i, const std::string &filename, cv::Mat &matimage, const cv:
 	extract_opencv(mask, matimage, &I, untrimmed);
 	//inpaint(&I, (uint32*)untrimmed);
 	
-	/*
-	cv::Mat inp_mat = matimage.clone();
-	to_cvmat(inp_mat, &I);
-	std::string out_inpaint = std::string("J:\\git\\multiblend\\multiblend\\x64\\ReleaseApp\\") + std::to_string(i) + std::string("_after_inpaint.png");
-	cv::imwrite(out_inpaint, inp_mat);
-	*/
+	
+	//cv::Mat inp_mat = matimage.clone();
+	//to_cvmat(inp_mat, &I);
+	//std::string out_inpaint = std::string("J:\\git\\multiblend\\multiblend\\x64\\ReleaseApp\\") + std::to_string(i) + std::string("_after_inpaint.png");
+	//cv::imwrite(out_inpaint, matimage);
+	
 
 	free(untrimmed);
 }
