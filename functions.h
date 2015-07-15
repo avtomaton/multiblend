@@ -41,7 +41,18 @@ inline float get_l2(const cv::Point &p1, const cv::Point &p2)
 }
 
 template<typename T>
-void find_distances_cycle_x(const uint8_t *pmask, int *pdist, int *pdist_prev, T *pnums, T *pnums_prev, int tmp_xbeg, int tmp_xend, bool invert_mask, bool is_closed_x, int l_straight = L_STRAIGHT, int l_diag = L_DIAG)
+void find_distances_cycle_x(
+	const uint8_t *pmask, 
+	int *pdist, 
+	int *pdist_prev, 
+	T *pnums, 
+	T *pnums_prev, 
+	int tmp_xbeg, 
+	int tmp_xend, 
+	bool invert_mask, 
+	bool is_closed_x, 
+	int l_straight = L_STRAIGHT, 
+	int l_diag = L_DIAG)
 {
 	for (int x = tmp_xbeg; x < tmp_xend; ++x)
 	{
@@ -91,7 +102,17 @@ void find_distances_cycle_x(const uint8_t *pmask, int *pdist, int *pdist_prev, T
 }
 
 template<typename T>
-void find_distances_cycle_y_horiz(cv::Mat &dist, cv::Mat &mat, const cv::Mat &mask, int shift, int ybeg, int yend, int xbeg, int xend, bool invert_mask, int l_straight = L_STRAIGHT)
+void find_distances_cycle_y_horiz(
+	cv::Mat &dist, 
+	cv::Mat &mat, 
+	const cv::Mat &mask, 
+	int shift, 
+	int ybeg, 
+	int yend, 
+	int xbeg, 
+	int xend, 
+	bool invert_mask, 
+	int l_straight = L_STRAIGHT)
 {
 	const uint8_t* pmask = NULL;
 	int* pdist = NULL;
@@ -119,6 +140,52 @@ void find_distances_cycle_y_horiz(cv::Mat &dist, cv::Mat &mat, const cv::Mat &ma
 			}
 			x += shift;
 		}
+	}
+}
+
+template<typename T>
+void find_distances_cycle_y_vert(
+	cv::Mat &dist, 
+	cv::Mat &mat, 
+	const cv::Mat &mask, 
+	int shift, 
+	int ybeg, 
+	int yend, 
+	int xbeg, 
+	int xend, 
+	int xl,
+	int xr,
+	bool two_areas, 
+	bool invert_mask, 
+	bool is_closed_x)
+{
+	const uint8_t *pmask = NULL;
+	int *pdist = NULL;
+	T *pmat = NULL;
+	int* pdist_prev = dist.ptr<int>(ybeg - shift);
+	T* pmat_prev = mat.ptr<T>(ybeg - shift);
+
+	int y = ybeg;
+	while (y != yend)
+	{
+		pdist = dist.ptr<int>(y);
+		pmat = mat.ptr<T>(y);
+		pmask = mask.ptr<uint8_t>(y);
+				
+		if (two_areas)
+		{
+			find_distances_cycle_x<T>(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xr, invert_mask, is_closed_x);
+			find_distances_cycle_x<T>(pmask, pdist, pdist_prev, pmat, pmat_prev, xl, xend, invert_mask, is_closed_x);
+		}
+		else
+		{
+			find_distances_cycle_x<T>(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xend, invert_mask, is_closed_x);
+		}
+
+		pdist_prev = pdist;
+		pmat_prev = pmat;
+
+		y += shift;
 	}
 }
 

@@ -607,33 +607,6 @@ void init_seamdist(cv::Mat &dist, cv::Mat &nums, const std::vector<cv::Mat> &mas
 	}
 }
 
-void find_seamdistances_cycle_y_vert(cv::Mat &dist, cv::Mat &mat, const std::vector<cv::Mat> &masks, int shift, int ybeg, int yend, int xbeg, int xend)
-{
-	int N = masks.size();
-	const uint8_t* pmask;
-	int* pdist;
-	uint8_t* pnums;
-
-	int* pdist_prev = dist.ptr<int>(ybeg - shift);
-	uint8_t* pnums_prev = mat.ptr<uint8_t>(ybeg - shift);
-
-	int y = ybeg;
-	while (y != yend)
-	{
-		pdist = dist.ptr<int>(y);
-		pnums = mat.ptr<uint8_t>(y);
-		for (int i = 0; i < N; ++i)
-		{
-			pmask = masks[i].ptr<uint8_t>(y);
-			find_distances_cycle_x<uint8_t>(pmask, pdist, pdist_prev, pnums, pnums_prev, xbeg, xend, true, true);
-		}
-		pdist_prev = pdist;
-		pnums_prev = pnums;
-
-		y += shift;
-	}
-}
-
 void set_g_edt_opencv(cv::Mat &dist, cv::Mat &nums, const std::vector<cv::Mat> &masks, float overlap_of_pano_split = 1.1)
 {
 	dist = cv::Mat(g_workheight, g_workwidth, CV_32S);
@@ -653,12 +626,14 @@ void set_g_edt_opencv(cv::Mat &dist, cv::Mat &nums, const std::vector<cv::Mat> &
 	// top to bottom
 	ybeg = 1;
 	yend = g_workheight;
-	find_seamdistances_cycle_y_vert(dist, nums, masks, 1, ybeg, yend, xbeg, xend);
+	for (int i = 0; i < N; ++i)
+		find_distances_cycle_y_vert<uint8_t>(dist, nums, masks[i], 1, ybeg, yend, xbeg, xend, 0, 0, false, true, true);
 
 	// bottom to top
 	ybeg = g_workheight - 1 - 1;
 	yend = -1;
-	find_seamdistances_cycle_y_vert(dist, nums, masks, -1, ybeg, yend, xbeg, xend);
+	for (int i = 0; i < N; ++i)
+		find_distances_cycle_y_vert<uint8_t>(dist, nums, masks[i], -1, ybeg, yend, xbeg, xend, 0, 0, false, true, true);
 
 //horizontal
 	ybeg = 0;

@@ -877,38 +877,6 @@ void init_dist(const cv::Mat &mask, cv::Mat &dist, struct_image* image)
 }
 
 
-void find_distances_cycle_y_vert(cv::Mat &dist, cv::Mat &mat, const cv::Mat &mask, int shift, int ybeg, int yend, int xbeg, int xend, int xl, int xr, bool two_areas)
-{
-	const uint8_t *pmask = NULL;
-	int *pdist = NULL;
-	cv::Vec3b *pmat = NULL;
-
-	int *pdist_prev = dist.ptr<int>(ybeg - shift);
-	cv::Vec3b *pmat_prev = mat.ptr<cv::Vec3b>(ybeg - shift);
-	int y = ybeg;
-	while (y != yend)
-	{
-		pmask = mask.ptr<uint8_t>(y);
-		pdist = dist.ptr<int>(y);
-		pmat = mat.ptr<cv::Vec3b>(y);
-
-		if (two_areas)
-		{
-			find_distances_cycle_x<cv::Vec3b>(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xr, false, false);
-			find_distances_cycle_x<cv::Vec3b>(pmask, pdist, pdist_prev, pmat, pmat_prev, xl, xend, false, false);
-		}
-		else
-		{
-			find_distances_cycle_x<cv::Vec3b>(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xend, false, false);
-		}
-
-		pdist_prev = pdist;
-		pmat_prev = pmat;
-
-		y += shift;
-	}
-}
-
 void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::Mat &dist)
 {
 	init_dist(mask, dist, image);
@@ -933,12 +901,12 @@ void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::
 	ybeg = image->ypos + 1;
 	yend = image->ypos + image->height;
 
-	find_distances_cycle_y_vert(dist, mat, mask, 1, ybeg, yend, xbeg, xend, xl, xr, two_areas);
+	find_distances_cycle_y_vert<cv::Vec3b>(dist, mat, mask, 1, ybeg, yend, xbeg, xend, xl, xr, two_areas, false, false);
 
 	// bottom to top
 	ybeg = image->ypos + image->height - 1 - 1;
 	yend = image->ypos - 1;
-	find_distances_cycle_y_vert(dist, mat, mask, -1, ybeg, yend, xbeg, xend, xl, xr, two_areas);
+	find_distances_cycle_y_vert<cv::Vec3b>(dist, mat, mask, -1, ybeg, yend, xbeg, xend, xl, xr, two_areas, false, false);
 
 //horizontal
 	ybeg = image->ypos;
