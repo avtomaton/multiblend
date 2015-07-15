@@ -122,7 +122,7 @@ void go(std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
 		//maybe memory leak
 		pseudowrap_seam();
 	} else {
-		seam();
+		seam(masks);
 	}
 	timer.report("seaming");
 

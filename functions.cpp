@@ -2,6 +2,11 @@
 #include "globals.h"
 #include  <cstdarg>
 
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+
+
 void output(int level, const char* fmt, ...) {
 	va_list args;
 

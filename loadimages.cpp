@@ -302,6 +302,8 @@ void extract(struct_image* image, void* bitmap) {
 
 void to_cvmat(cv::Mat &mat, struct_image* image)
 {
+	Proftimer proftimer(&mprofiler, "to_cvmat");
+
 	int p = 0;
 	for (int y = 0; y < image->height; ++y) {
 		cv::Vec3b *pmat = mat.ptr<cv::Vec3b>(y + image->ypos) + (image->xpos);
@@ -892,37 +894,6 @@ void init_dist(const cv::Mat &mask, cv::Mat &dist, struct_image* image)
 	}
 }
 
-void find_dist_cycle_x(const uint8_t *pmask, int *pdist, int *pdist_prev, cv::Vec3b *pmat, cv::Vec3b *pmat_prev, int tmp_xbeg, int tmp_xend)
-{
-	for (int x = tmp_xbeg; x < tmp_xend; ++x)
-	{
-		if (pmask[x])
-			continue;
-
-		if (pdist_prev[x] + 2 < pdist[x])
-		{
-			pdist[x] = pdist_prev[x] + 2;
-			pmat[x] = pmat_prev[x];
-		}
-
-		if (x != tmp_xbeg)
-		{
-			if (pdist_prev[x - 1] + 3 < pdist[x])
-			{
-				pdist[x] = pdist_prev[x - 1] + 3;
-				pmat[x] = pmat_prev[x - 1];
-			}
-		}
-		if (x != (tmp_xend - 1))
-		{
-			if (pdist_prev[x + 1] + 3 < pdist[x])
-			{
-				pdist[x] = pdist_prev[x + 1] + 3;
-				pmat[x] = pmat_prev[x + 1];
-			}
-		}
-	}
-}
 
 void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::Mat &dist)
 {
@@ -939,112 +910,41 @@ void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::
 		//printf("xl = %d, xr = %d\n", xl, xr);
 	}
 
-	const uint8_t *pmask = NULL;
-	int *pdist = NULL;
-	int *pdist_prev = NULL;
-	cv::Vec3b *pmat = NULL;
-	cv::Vec3b *pmat_prev = NULL;
-
 	int ybeg, yend;
 	int xbeg, xend;
+	Proftimer proftimer_vert(&mprofiler, "inpaint_opencv_vert");
 
+//vertical
 	xbeg = image->xpos;
 	xend = image->xpos + image->width;
 
 	// top to bottom
 	ybeg = image->ypos + 1;
 	yend = image->ypos + image->height;
-	pdist_prev = dist.ptr<int>(ybeg - 1);
-	pmat_prev = mat.ptr<cv::Vec3b>(ybeg - 1);
-	for (int y = ybeg; y < yend; ++y)
-	{
-		pmask = mask.ptr<uint8_t>(y);
-		pdist = dist.ptr<int>(y);
-		pmat = mat.ptr<cv::Vec3b>(y);
 
-		if (two_areas)
-		{
-			find_dist_cycle_x(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xr);
-			find_dist_cycle_x(pmask, pdist, pdist_prev, pmat, pmat_prev, xl, xend);
-		}
-		else
-		{
-			find_dist_cycle_x(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xend);
-		}
-
-		pdist_prev = pdist;
-		pmat_prev = pmat;
-	}
+	find_distances_cycle_y_vert<cv::Vec3b>(dist, mat, mask, 1, ybeg, yend, xbeg, xend, xl, xr, two_areas, false, false);
 
 	// bottom to top
 	ybeg = image->ypos + image->height - 1 - 1;
-	yend = image->ypos;
-	pdist_prev = dist.ptr<int>(ybeg + 1);
-	pmat_prev = mat.ptr<cv::Vec3b>(ybeg + 1);
-	for (int y = ybeg; y >= yend; --y)
-	{
-		pmask = mask.ptr<uint8_t>(y);
-		pdist = dist.ptr<int>(y);
-		pmat = mat.ptr<cv::Vec3b>(y);
-		
-		if (two_areas)
-		{
-			find_dist_cycle_x(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xr);
-			find_dist_cycle_x(pmask, pdist, pdist_prev, pmat, pmat_prev, xl, xend);
-		}
-		else
-		{
-			find_dist_cycle_x(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xend);
-		}
+	yend = image->ypos - 1;
+	find_distances_cycle_y_vert<cv::Vec3b>(dist, mat, mask, -1, ybeg, yend, xbeg, xend, xl, xr, two_areas, false, false);
+	proftimer_vert.stop();
+	Proftimer proftimer_horiz(&mprofiler, "inpaint_opencv_horiz");
 
-		pdist_prev = pdist;
-		pmat_prev = pmat;
-	}
-
+//horizontal
 	ybeg = image->ypos;
 	yend = image->ypos + image->height;
 
 	//left to right
 	xbeg = image->xpos + 1;
 	xend = xr;
-	for (int y = ybeg; y < yend; ++y)
-	{
-		pmask = mask.ptr<uint8_t>(y);
-		pdist = dist.ptr<int>(y);
-		pmat = mat.ptr<cv::Vec3b>(y);
-		for (int x = xbeg; x < xend; ++x)
-		{
-			if (pmask[x])
-				continue;
-
-			if (pdist[x - 1] + 2 < pdist[x])
-			{
-				pdist[x] = pdist[x - 1] + 2;
-				pmat[x] = pmat[x - 1];
-			}
-		}
-	}
+	find_distances_cycle_y_horiz<cv::Vec3b>(dist, mat, mask, 1, ybeg, yend, xbeg, xend, false);
 
 	//right to left
 	xbeg = (image->xpos + image->width - 1) - 1;
-	xend = xl;
-	for (int y = ybeg; y < yend; ++y)
-	{
-		pmask = mask.ptr<uint8_t>(y);
-		pdist = dist.ptr<int>(y);
-		pmat = mat.ptr<cv::Vec3b>(y);
-		for (int x = xbeg; x >= xend; --x)
-		{
-			if (pmask[x])
-				continue;
-
-			if (pdist[x + 1] + 2 < pdist[x])
-			{
-				pdist[x] = pdist[x + 1] + 2;
-				pmat[x] = pmat[x + 1];
-			}
-		}
-	}
+	xend = xl - 1;
+	find_distances_cycle_y_horiz<cv::Vec3b>(dist, mat, mask, -1, ybeg, yend, xbeg, xend, false);
+	proftimer_horiz.stop();
 }
 
 void tighten() {
@@ -1373,12 +1273,12 @@ void mat2struct(int i, const std::string &filename, cv::Mat &matimage, const cv:
 	extract_opencv(mask, matimage, &I, untrimmed);
 	//inpaint(&I, (uint32*)untrimmed);
 	
-	/*
-	cv::Mat inp_mat = matimage.clone();
-	to_cvmat(inp_mat, &I);
-	std::string out_inpaint = std::string("J:\\git\\multiblend\\multiblend\\x64\\ReleaseApp\\") + std::to_string(i) + std::string("_after_inpaint.png");
-	cv::imwrite(out_inpaint, inp_mat);
-	*/
+	
+	//cv::Mat inp_mat = matimage.clone();
+	//to_cvmat(inp_mat, &I);
+	//std::string out_inpaint = std::string("J:\\git\\multiblend\\multiblend\\x64\\ReleaseApp\\") + std::to_string(i) + std::string("_after_inpaint.png");
+	//cv::imwrite(out_inpaint, matimage);
+	
 
 	free(untrimmed);
 }
