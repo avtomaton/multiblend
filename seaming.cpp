@@ -641,12 +641,12 @@ void set_g_edt_opencv(cv::Mat &dist, cv::Mat &nums, const std::vector<cv::Mat> &
 
 	//left to right
 	xbeg = 1;
-	xend = overlap_of_pano_split * g_workwidth;
+	xend = g_workwidth; // overlap_of_pano_split * g_workwidth;
 	for (int i = 0; i < N; ++i)
 		find_distances_cycle_y_horiz<uint8_t>(dist, nums, masks[i], 1, ybeg, yend, xbeg, xend, true);
 
 	//right to left
-	xbeg = overlap_of_pano_split * ((g_workwidth - 1) - 1);
+	xbeg = (g_workwidth - 1) - 1; // overlap_of_pano_split * ((g_workwidth - 1) - 1);
 	xend = -1;
 	for (int i = 0; i < N; ++i)
 		find_distances_cycle_y_horiz<uint8_t>(dist, nums, masks[i], -1, ybeg, yend, xbeg, xend, true);

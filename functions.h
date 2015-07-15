@@ -124,19 +124,17 @@ void find_distances_cycle_y_horiz(
 		pmat = mat.ptr<T>(y);
 		pmask = mask.ptr<uint8_t>(y);
 		int x = xbeg;
-		while (x != xend) //overlap
+		while (x != xend)
 		{
-			int mx = x % g_workwidth;
-			int mxp = (x - shift) % g_workwidth;
-			if (invert_mask ? !pmask[mx] : pmask[mx])
+			if (invert_mask ? !pmask[x] : pmask[x])
 			{
 				x += shift;
 				continue;
 			}
-			if (pdist[mxp] + l_straight < pdist[mx])
+			if (pdist[x - shift] + l_straight < pdist[x])
 			{
-				pdist[mx] = pdist[mxp] + l_straight;
-				pmat[mx] = pmat[mxp];
+				pdist[x] = pdist[x - shift] + l_straight;
+				pmat[x] = pmat[x - shift];
 			}
 			x += shift;
 		}
