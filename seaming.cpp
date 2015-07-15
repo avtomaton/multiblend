@@ -607,6 +607,33 @@ void init_seamdist(cv::Mat &dist, cv::Mat &nums, const std::vector<cv::Mat> &mas
 	}
 }
 
+void find_seamdistances_cycle_y_vert(cv::Mat &dist, cv::Mat &mat, const std::vector<cv::Mat> &masks, int shift, int ybeg, int yend, int xbeg, int xend)
+{
+	int N = masks.size();
+	const uint8_t* pmask;
+	int* pdist;
+	uint8_t* pnums;
+
+	int* pdist_prev = dist.ptr<int>(ybeg - shift);
+	uint8_t* pnums_prev = mat.ptr<uint8_t>(ybeg - shift);
+
+	int y = ybeg;
+	while (y != yend)
+	{
+		pdist = dist.ptr<int>(y);
+		pnums = mat.ptr<uint8_t>(y);
+		for (int i = 0; i < N; ++i)
+		{
+			pmask = masks[i].ptr<uint8_t>(y);
+			find_distances_cycle_x<uint8_t>(pmask, pdist, pdist_prev, pnums, pnums_prev, xbeg, xend, true, true);
+		}
+		pdist_prev = pdist;
+		pnums_prev = pnums;
+
+		y += shift;
+	}
+}
+
 void set_g_edt_opencv(cv::Mat &dist, cv::Mat &nums, const std::vector<cv::Mat> &masks, float overlap_of_pano_split = 1.1)
 {
 	dist = cv::Mat(g_workheight, g_workwidth, CV_32S);
@@ -615,111 +642,39 @@ void set_g_edt_opencv(cv::Mat &dist, cv::Mat &nums, const std::vector<cv::Mat> &
 	init_seamdist(dist, nums, masks);
 
 	int N = masks.size();
-	const uint8_t* pmask;
-	int* pdist;
-	int* pdist_prev;
-	uint8_t* pnums;
-	uint8_t* pnums_prev;
 
 	int ybeg, yend;
 	int xbeg, xend;
 
+//vertical
 	xbeg = 0;
 	xend = g_workwidth;
 
 	// top to bottom
 	ybeg = 1;
 	yend = g_workheight;
-	pdist_prev = dist.ptr<int>(ybeg - 1);
-	pnums_prev = nums.ptr<uint8_t>(ybeg - 1);
-	for (int y = ybeg; y < yend; ++y)
-	{
-		pdist = dist.ptr<int>(y);
-		pnums = nums.ptr<uint8_t>(y);
-		for (int i = 0; i < N; ++i)
-		{
-			pmask = masks[i].ptr<uint8_t>(y);
-			find_distances_cycle_x<uint8_t>(pmask, pdist, pdist_prev, pnums, pnums_prev, xbeg, xend, true, true);
-		}
-		pdist_prev = pdist;
-		pnums_prev = pnums;
-	}
+	find_seamdistances_cycle_y_vert(dist, nums, masks, 1, ybeg, yend, xbeg, xend);
 
 	// bottom to top
 	ybeg = g_workheight - 1 - 1;
-	yend = 0;
-	pdist_prev = dist.ptr<int>(ybeg + 1);
-	pnums_prev = nums.ptr<uint8_t>(ybeg + 1);
-	for (int y = ybeg; y >= yend; --y)
-	{
-		pdist = dist.ptr<int>(y);
-		pnums = nums.ptr<uint8_t>(y);
-		for (int i = 0; i < N; ++i)
-		{
-			pmask = masks[i].ptr<uint8_t>(y);
-			find_distances_cycle_x<uint8_t>(pmask, pdist, pdist_prev, pnums, pnums_prev, xbeg, xend, true, true);
-		}
-		pdist_prev = pdist;
-		pnums_prev = pnums;
-	}
+	yend = -1;
+	find_seamdistances_cycle_y_vert(dist, nums, masks, -1, ybeg, yend, xbeg, xend);
 
+//horizontal
 	ybeg = 0;
 	yend = g_workheight;
-	int offset;
+
 	//left to right
 	xbeg = 1;
-	xend = g_workwidth;
-	offset = -1;
-	for (int y = ybeg; y < yend; ++y)
-	{
-		pdist = dist.ptr<int>(y);
-		pnums = nums.ptr<uint8_t>(y);
-		for (int i = 0; i < N; ++i)
-		{
-			pmask = masks[i].ptr<uint8_t>(y);
-			for (int x = xbeg; x < overlap_of_pano_split * xend; ++x) //overlap
-			{
-				int mx = x % g_workwidth;
-				int mxp = (x + offset) % g_workwidth;
-				
-				if (!pmask[mx])
-					continue;
-				if (pdist[mxp] + 2 < pdist[mx])
-				{
-					pdist[mx] = pdist[mxp] + 2;
-					pnums[mx] = pnums[mxp];
-				}
-			}
-		}
-	}
+	xend = overlap_of_pano_split * g_workwidth;
+	for (int i = 0; i < N; ++i)
+		find_distances_cycle_y_horiz<uint8_t>(dist, nums, masks[i], 1, ybeg, yend, xbeg, xend, true);
 
 	//right to left
-	xbeg = (g_workwidth - 1) - 1;
-	xend = 0;
-	offset = 1;
-	for (int y = ybeg; y < yend; ++y)
-	{
-		pdist = dist.ptr<int>(y);
-		pnums = nums.ptr<uint8_t>(y);
-		for (int i = 0; i < N; ++i) 
-		{
-			pmask = masks[i].ptr<uint8_t>(y);
-			for (int x = overlap_of_pano_split * xbeg; x >= xend; --x) //overlap
-			{
-				int mx = x % g_workwidth;
-				int mxp = (x + offset) % g_workwidth;
-
-				if (!pmask[mx])
-					continue;
-
-				if (pdist[mxp] + 2 < pdist[mx])
-				{
-					pdist[mx] = pdist[mxp] + 2;
-					pnums[mx] = pnums[mxp];
-				}
-			}
-		}
-	}
+	xbeg = overlap_of_pano_split * ((g_workwidth - 1) - 1);
+	xend = -1;
+	for (int i = 0; i < N; ++i)
+		find_distances_cycle_y_horiz<uint8_t>(dist, nums, masks[i], -1, ybeg, yend, xbeg, xend, true);
 }
 
 void simple_seam() {
@@ -841,14 +796,15 @@ void seam(const std::vector<cv::Mat> &masks) {
 			leftupxy();
 			rightdownxy();
 
+			/*
 			cv::Mat dist;
 			cv::Mat nums;
-			//set_g_edt_opencv(dist, nums, masks);
+			set_g_edt_opencv(dist, nums, masks);
+			cv::imwrite("seam_dist_opencv.png", dist / 5);
+			cv::imwrite("seam_image_opencv.png", nums * 30);
+			write_g_edt();
+			*/
 
-			//cv::imwrite("seam_dist_opencv.png", dist / 5);
-			//cv::imwrite("seam_image_opencv.png", nums * 30);
-
-			//write_g_edt();
 			make_seams();
 
 			_aligned_free(g_edt);

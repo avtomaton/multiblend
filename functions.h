@@ -8,6 +8,8 @@
 
 #include <opencv2/core/core.hpp>
 
+#define L_STRAIGHT 2
+#define L_DIAG 3
 void output(int level, const char* fmt, ...);
 
 void report_time(const char* name, double time);
@@ -39,7 +41,7 @@ inline float get_l2(const cv::Point &p1, const cv::Point &p2)
 }
 
 template<typename T>
-void find_distances_cycle_x(const uint8_t *pmask, int *pdist, int *pdist_prev, T *pnums, T *pnums_prev, int tmp_xbeg, int tmp_xend, bool invert_mask, bool is_closed_x, int l_straight = 2, int l_diag = 3)
+void find_distances_cycle_x(const uint8_t *pmask, int *pdist, int *pdist_prev, T *pnums, T *pnums_prev, int tmp_xbeg, int tmp_xend, bool invert_mask, bool is_closed_x, int l_straight = L_STRAIGHT, int l_diag = L_DIAG)
 {
 	for (int x = tmp_xbeg; x < tmp_xend; ++x)
 	{
@@ -88,6 +90,37 @@ void find_distances_cycle_x(const uint8_t *pmask, int *pdist, int *pdist_prev, T
 	}
 }
 
+template<typename T>
+void find_distances_cycle_y_horiz(cv::Mat &dist, cv::Mat &mat, const cv::Mat &mask, int shift, int ybeg, int yend, int xbeg, int xend, bool invert_mask, int l_straight = L_STRAIGHT)
+{
+	const uint8_t* pmask = NULL;
+	int* pdist = NULL;
+	T* pmat = NULL;
+
+	for (int y = ybeg; y < yend; ++y)
+	{
+		pdist = dist.ptr<int>(y);
+		pmat = mat.ptr<T>(y);
+		pmask = mask.ptr<uint8_t>(y);
+		int x = xbeg;
+		while (x != xend) //overlap
+		{
+			int mx = x % g_workwidth;
+			int mxp = (x - shift) % g_workwidth;
+			if (invert_mask ? !pmask[mx] : pmask[mx])
+			{
+				x += shift;
+				continue;
+			}
+			if (pdist[mxp] + l_straight < pdist[mx])
+			{
+				pdist[mx] = pdist[mxp] + l_straight;
+				pmat[mx] = pmat[mxp];
+			}
+			x += shift;
+		}
+	}
+}
 
 //load images
 void trim8(void* bitmap, uint32 w, uint32 h, int bpp, int* top, int* left, int* bottom, int* right);
@@ -103,6 +136,7 @@ void inpaint16(struct_image* image, uint32* edt);
 void inpaint(struct_image* image, uint32* edt);
 bool is_two_areas(const cv::Mat &mask, struct_image* image);
 void init_dist(const cv::Mat &mask, cv::Mat &dist, struct_image* image);
+
 void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::Mat &dist);
 void tighten();
 int localize_xl(const cv::Mat &mask, float j0, float jstep, float left, float right);
