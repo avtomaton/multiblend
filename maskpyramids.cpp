@@ -2,6 +2,11 @@
 #include "globals.h"
 #include "functions.h"
 
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+
+
 void png_mask(int i) {
 	int x,y;
 	int w;
@@ -276,7 +281,9 @@ int squash_lines(float* a, float* b, float* c, float* o, int width) {
 			if (count[i]<mincount) mincount=count[i];
 		}
 
-		if (mincount>1) *(int*)&o[p++]=-mincount;
+		if (mincount >= 1) 
+			*(int*)&o[p++]=-mincount;
+
 		o[p++]=(float)((pixel[0].f+pixel[1].f*2+pixel[2].f)*0.0625);
 
 		for (i=0; i<3; i++) {
@@ -391,6 +398,39 @@ void extract_top_masks() {
 	free(size);
 }
 
+cv::Mat top_mask_to_cvmat(int i, int l, int w, int h)
+{
+	printf("top_mask_to_cvmat(%d, %d, %d, %d)\n", i, l, w, h);
+	cv::Mat out(h, w, CV_8U);
+	float* pmask = g_images[i].masks[l];
+	int p = 0;
+	intfloat pix;
+
+	int index = 0;
+	int y = 0;
+	int x = 0;
+	uint8_t *pout = out.ptr<uint8_t>(0);
+	while (index < h*w)
+	{
+		pix.f = pmask[p++];
+		int count = -pix.i;
+		float num = pmask[p++];
+		for (int k = 0; k < count; ++k)
+		{
+			pout[x++] = std::max<int>(0, std::min<int>(num * 128,255));
+			if (x == w)
+			{
+				pout = out.ptr<uint8_t>(++y);
+				x = 0;
+			}
+			++index;
+		}
+	}
+
+	return out;
+}
+
+
 void shrink_masks() {
 	int i,l;
 	int w,h;
@@ -402,8 +442,15 @@ void shrink_masks() {
 		for (l=0; l<g_levels-1; l++) {
 			ow=(w+2)>>1;
 			oh=(h+2)>>1;
-
-			shrink_mask(g_images[i].masks[l],&g_images[i].masks[l+1],w,h,ow,oh);
+			printf("shrink_mask(%d,%d,%d,%d)\n",i,l+1,ow,oh);
+			shrink_mask(g_images[i].masks[l], &g_images[i].masks[l+1], w, h, ow, oh);
+			
+			if (i == 0)
+			{
+				cv::Mat mat = top_mask_to_cvmat(i, l+1, ow, oh);
+				std::string out_path = std::string("maskpyramid_") + std::to_string(i) + std::string("_") + std::to_string(l) + std::string(".png");
+				cv::imwrite(out_path, mat);
+			}
 
 			w=ow;
 			h=oh;
