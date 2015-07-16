@@ -442,15 +442,15 @@ void shrink_masks() {
 		for (l=0; l<g_levels-1; l++) {
 			ow=(w+2)>>1;
 			oh=(h+2)>>1;
-			printf("shrink_mask(%d,%d,%d,%d)\n",i,l+1,ow,oh);
+			//printf("shrink_mask(%d,%d,%d,%d)\n",i,l+1,ow,oh);
 			shrink_mask(g_images[i].masks[l], &g_images[i].masks[l+1], w, h, ow, oh);
 			
-			if (i == 0)
+			/*if (i == 0)
 			{
 				cv::Mat mat = top_mask_to_cvmat(i, l+1, ow, oh);
 				std::string out_path = std::string("maskpyramid_") + std::to_string(i) + std::string("_") + std::to_string(l) + std::string(".png");
 				cv::imwrite(out_path, mat);
-			}
+			}*/
 
 			w=ow;
 			h=oh;
