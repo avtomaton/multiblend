@@ -72,7 +72,9 @@ void parse(std::vector<std::string> &output, const std::string &input)
 		output.push_back(temp);
 }
 
-int multiblend(const std::string &inputstring, std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
+int multiblend(const std::string &inputstring, std::vector<cv::Mat> &mats, std::vector<cv::Mat> &masks) {
+	g_cvmats = mats;
+	g_cvmasks = masks;
 
 	#if TIFF_LIBRARY
 	TIFFSetWarningHandler(NULL);
@@ -183,7 +185,7 @@ int multiblend(const std::string &inputstring, std::vector<cv::Mat> &mats, const
 
 	if (!g_output_filename && !g_seamsave_filename) die("no output file specified");
 
-	go(mats, masks);
+	go();
 	clear_temp();
 
 	if (g_debug) {

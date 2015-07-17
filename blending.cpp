@@ -1,5 +1,5 @@
-#define ACCURACY 5 // don't change this
-
+#define ACCURACY 5
+// don't change this
 
 #include "structs.h"
 #include "globals.h"
@@ -8,6 +8,10 @@
 
 #include <algorithm>
 #include <emmintrin.h>
+
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 
 void save_out_pyramid(int c, bool collapsed) {
 	int l;
@@ -88,24 +92,31 @@ void hshrink(struct_level* upper, struct_level* lower) {
 		if (g_workbpp==8) {
 			tmp1=((short*)upper->data)[up++];
 			tmp2=((short*)upper->data)[up++];
-		} else {
+		} 
+		else 
+		{
 			tmp1=((int*)upper->data)[up++];
 			tmp2=((int*)upper->data)[up++];
 		}
 		tmp1+=tmp1<<1;
 		tmp1=tmp1+tmp2;
-		while (x<=x_extra0) {
+		while (x <= x_extra0) 
+		{
 			tmp[x++]=tmp1; // was +tmp2
 		}
 
-		if (g_workbpp==8) {
-			while (x<xlim) {
+		if (g_workbpp==8) 
+		{
+			while (x<xlim) 
+			{
 				tmp1=tmp2+(((short*)upper->data)[up++]<<1);
 				tmp2=((short*)upper->data)[up++];
 				tmp[x++]=(tmp1+tmp2);
 			}
 			tmp1=((short*)upper->data)[up++];
-		} else {
+		} 
+		else 
+		{
 			while (x<xlim) {
 				tmp1=tmp2+(((int*)upper->data)[up++]<<1);
 				tmp2=((int*)upper->data)[up++];
@@ -117,7 +128,8 @@ void hshrink(struct_level* upper, struct_level* lower) {
 		tmp1+=tmp1<<1;
 		tmp1+=tmp2;
 
-		while (x<lower->pitch) {
+		while (x<lower->pitch) 
+		{
 			tmp[x++]=tmp1;
 		}
 
@@ -231,7 +243,9 @@ __inline void inflate_line_short(short *input, short *output, int w) {
 		n=input[ix++];
 		output[x++]=(p+n+1)>>1;
 		w++;
-	} else {
+	} 
+	else 
+	{
 		while (x<w) { // all other cases have odd width
 			output[x]=output[x-1];
 			x++;
@@ -281,12 +295,18 @@ void hps(struct_level* upper, struct_level *lower) {
 	lp=y_extra0*lower->pitch+x_extra0;
 	__m128i* upper_p=((__m128i*)upper->data);
 
-	if (g_workbpp==8) inflate_line_short(&((short*)lower->data)[lp],(short*)g_line0,upper->pitch);
-	else	            inflate_line_int(&((int*)lower->data)[lp],(int*)g_line0,upper->pitch);
+	if (g_workbpp==8) 
+		inflate_line_short(&((short*)lower->data)[lp],(short*)g_line0,upper->pitch);
+	else	            
+		inflate_line_int(&((int*)lower->data)[lp],(int*)g_line0,upper->pitch);
 	lp+=lower->pitch;
 
-	if (g_workbpp==8) for (x=0; x<sse_pitch; x++) upper_p[x]=_mm_sub_epi16(upper_p[x],((__m128i*)g_line0)[x]);
-	else            	for (x=0; x<sse_pitch; x++) upper_p[x]=_mm_sub_epi32(upper_p[x],((__m128i*)g_line0)[x]);
+	if (g_workbpp==8) 
+		for (x=0; x<sse_pitch; x++) 
+			upper_p[x]=_mm_sub_epi16(upper_p[x],((__m128i*)g_line0)[x]);
+	else            	
+		for (x=0; x<sse_pitch; x++) 
+			upper_p[x]=_mm_sub_epi32(upper_p[x],((__m128i*)g_line0)[x]);
 	upper_p+=sse_pitch;
 
 	for (y=1; y<ylim; y++) {
@@ -299,7 +319,9 @@ void hps(struct_level* upper, struct_level *lower) {
 				upper_p[x]=_mm_sub_epi16(upper_p[x],sse_mix);
 			}
 			lp+=lower->pitch;
-		} else {
+		} 
+		else 
+		{
 			inflate_line_int(&((int*)lower->data)[lp],(int*)g_line1,upper->pitch);
 			for (x=0; x<sse_pitch; x++) {
 				sse_mix=_mm_add_epi32(((__m128i*)g_line0)[x],((__m128i*)g_line1)[x]);
@@ -311,8 +333,12 @@ void hps(struct_level* upper, struct_level *lower) {
 		}
 		upper_p+=sse_pitch;
 
-		if (g_workbpp==8) for (x=0; x<sse_pitch; x++) upper_p[x]=_mm_sub_epi16(upper_p[x],((__m128i*)g_line1)[x]);
-		else          		for (x=0; x<sse_pitch; x++) upper_p[x]=_mm_sub_epi32(upper_p[x],((__m128i*)g_line1)[x]);
+		if (g_workbpp==8) 
+			for (x=0; x<sse_pitch; x++) 
+				upper_p[x]=_mm_sub_epi16(upper_p[x],((__m128i*)g_line1)[x]);
+		else          		
+			for (x=0; x<sse_pitch; x++) 
+				upper_p[x]=_mm_sub_epi32(upper_p[x],((__m128i*)g_line1)[x]);
 		upper_p+=sse_pitch;
 
 		swap=g_line0;
@@ -327,6 +353,23 @@ void shrink_hps(struct_level* upper, struct_level* lower) {
 	hps(upper,lower);
 }
 
+void shrink_opencv(const cv::Mat &upper, cv::Mat &lower, int l)
+{
+	cv::resize(upper, lower, g_cvmaskpyramids[0][l + 1].size());
+}
+void hps_opencv(cv::Mat &upper, const cv::Mat &lower)
+{
+	cv::Mat tmp;
+	cv::resize(lower, tmp, upper.size());
+	upper -= tmp;
+}
+
+void shrink_hps_opencv(cv::Mat &upper, cv::Mat &lower, int l) {
+	shrink_opencv(upper, lower, l);
+	hps_opencv(upper, lower);
+}
+
+
 void copy_channel(int i, int c) {
 	int x,y;
 	struct_level* top=&PY(i,0);
@@ -334,16 +377,16 @@ void copy_channel(int i, int c) {
 	int a=0;
 	int ip=0;
 	int op=0;
-	int x_extra0=g_images[i].xpos-top->x0;
-	int y_extra0=g_images[i].ypos-top->y0;
-	int y_extra1=top->y1-(g_images[i].ypos+g_images[i].height-1);
-	int xlim=g_images[i].width+x_extra0;
+	int x_extra0 = g_images[i].xpos-top->x0;
+	int y_extra0 = g_images[i].ypos-top->y0;
+	int y_extra1 = top->y1 - (g_images[i].ypos + g_images[i].height - 1);
+	int xlim = g_images[i].width + x_extra0;
 	int ipt;
 	int mode;
 
-	if (g_bgr) c=2-c;
+	if (g_bgr) c = 2 -  c;
 
-	mode=(g_workbpp==16)<<1|(g_images[i].bpp==16);
+	mode = (g_workbpp==16)<<1|(g_images[i].bpp==16); // 0
 
 	if (g_caching) {
 		rewind(I.channels[c].f);
@@ -356,14 +399,17 @@ void copy_channel(int i, int c) {
 	for (y=0; y<top->h-y_extra1; y++) {
 		switch(mode) {
 			case 0:
-				a=((uint8*)pixels)[ip++]<<ACCURACY;
-				for (x=0; x<=x_extra0; x++) ((short*)top->data)[op++]=a;
-				ipt=ip+xlim-x;
-				while (ip<ipt) {
-					a=((uint8*)pixels)[ip++]<<ACCURACY;
-					((short*)top->data)[op++]=a;
+				a = ((uint8*)pixels)[ip++]<<ACCURACY;
+				for (x = 0; x <= x_extra0; x++) 
+					((short*)top->data)[op++] = a;
+				ipt = ip + xlim - x;
+				while (ip < ipt) 
+				{
+					a = ((uint8*)pixels)[ip++]<<ACCURACY;
+					((short*)top->data)[op++] = a;
 				}
-				for (x=xlim; x<top->pitch; x++) ((short*)top->data)[op++]=a;
+				for (x = xlim; x < top->pitch; x++) 
+					((short*)top->data)[op++] = a;
 				break;
 			case 1:
 				a=((uint16*)pixels)[ip++]>>(8-ACCURACY);
@@ -436,6 +482,12 @@ void copy_channel(int i, int c) {
 	}
 }
 
+void copy_channel_opencv(int i)
+{
+	g_cvmats[i].convertTo(g_cvmatpyramids[0], CV_16U);
+	g_cvmatpyramids[0] *= 1 << ACCURACY;
+}
+
 #define NEXT_MASK { \
 	pixel.f=*mask++; \
 	if (pixel.i<0) { \
@@ -458,10 +510,10 @@ void mask_into_output(struct_level* input, float* mask, struct_level* output, bo
 
 	if (first) memset(output->data,0,(output->pitch*output->h)<<bpp_shift);
 
-	input_line=input->data;
+	input_line = input->data;
 
 	x=0;
-	x_extra=input->x0;
+	x_extra = input->x0;
 	if (x_extra<0) {
 		x_extra=0;
 		x-=input->x0;
@@ -474,19 +526,19 @@ void mask_into_output(struct_level* input, float* mask, struct_level* output, bo
 		y_extra=0;
 	}
 
-// advance mask pointer to first active line
+	// advance mask pointer to first active line
 	x=output->w*y_extra;
 	while (x>0) {
 		NEXT_MASK;
 		x-=count;
 	}
 
-// advance output pointer to first active line
-//	out_p+=output->pitch*y_extra;
+	// advance output pointer to first active line
+	//	out_p+=output->pitch*y_extra;
 	out_p=(void*)&((char*)out_p)[(output->pitch*y_extra)<<bpp_shift];
 
 	for (y=y_extra; y<ylim; y++) {
-// advance mask pointer to correct x position
+		// advance mask pointer to correct x position
 		x=0;
 		while (x<x_extra) {
 			NEXT_MASK;
@@ -496,25 +548,29 @@ void mask_into_output(struct_level* input, float* mask, struct_level* output, bo
 		count=x-x_extra;
 		x-=count;
 
-// mask in active pixels
+		// mask in active pixels
 		while (x<xlim) {
 			if (count==0) NEXT_MASK;
-			if (pixel.f==0) {
+			if (pixel.f==0) 
+			{
 				x+=count;
 				count=0;
-			} else
-			if (pixel.f==1) {
+			} 
+			else if (pixel.f==1) 
+			{
 				limcount=xlim-x;
 				if (limcount>count) limcount=count;
 				if (g_workbpp==8)
-					memcpy(&((short*)out_p)[x],&((short*)input_line)[x],limcount<<bpp_shift);
+					memcpy(&((short*)out_p)[x], &((short*)input_line)[x], limcount<<bpp_shift);
 				else
-					memcpy(&((int*)out_p)[x],&((int*)input_line)[x],limcount<<bpp_shift);
+					memcpy(&((int*)out_p)[x], &((int*)input_line)[x], limcount<<bpp_shift);
 				x+=count;
 				count=0;
-			} else {
+			} 
+			else 
+			{
 				if (g_workbpp==8)
-					((short*)out_p)[x]+=(int)(((int16*)input_line)[x]*pixel.f+0.5);
+					((short*)out_p)[x]+=(int)(((int16*)input_line)[x]*pixel.f+0.5); // threshold of mask
 				else
 					((int*)out_p)[x]+=(int)(((int*)input_line)[x]*pixel.f+0.5);
 				x++;
@@ -522,7 +578,7 @@ void mask_into_output(struct_level* input, float* mask, struct_level* output, bo
 			}
 		}
 
-// advance mask pointer to next line
+		// advance mask pointer to next line
 		x+=count;
 		while (x<output->w) {
 			NEXT_MASK;
@@ -533,6 +589,45 @@ void mask_into_output(struct_level* input, float* mask, struct_level* output, bo
 		input_line=(void*)&((char*)input_line)[input->pitch<<bpp_shift];
 	}
 }
+
+void mask_into_output_opencv(int i, int l, bool first)
+{
+	int rows = g_cvmatpyramids[l].rows;
+	int cols = g_cvmatpyramids[l].cols;
+	if (l == 9 && i == 0) 
+		printf("mask_into_output_opencv: i = %d, l = %d, rows = %d, cols = %d\n", i, l, rows, cols);
+	int chsize = g_cvmatpyramids[l].channels();
+
+	if (first)
+		g_cvoutput_pyramid[l] = cv::Mat::zeros(g_cvmatpyramids[l].size(), g_cvmatpyramids[l].type());
+
+	for (int y = 0; y < rows; ++y)
+	{
+		const cv::Vec3s *pmat = g_cvmatpyramids[l].ptr<cv::Vec3s>(y);
+		cv::Vec3s *pout = g_cvoutput_pyramid[l].ptr<cv::Vec3s>(y);
+		uint8_t *pmask = g_cvmaskpyramids[i][l].ptr(y);
+		for (int x = 0; x < cols; ++x)
+		{
+			if (pmask[x] < 128)
+				continue;
+			pout[x] = pmat[x];
+		}
+	}
+
+		cv::Mat tmpout, tmpout2;
+		tmpout = g_cvoutput_pyramid[l].clone();
+		tmpout /= 1 << ACCURACY;
+		tmpout.convertTo(tmpout2, CV_8U);
+		std::string outstring = "g_cvoutput_pyramid\\g_cvoutput_pyramid";
+		outstring += "_";
+		outstring += std::to_string(i);
+		outstring += "_";
+		outstring += std::to_string(l);
+		outstring += ".png";
+		cv::imwrite(outstring, tmpout2);
+
+}
+
 
 void collapse(struct_level* lower, struct_level* upper) {
 	int i;
@@ -546,7 +641,8 @@ void collapse(struct_level* lower, struct_level* upper) {
 
 	if (g_workbpp==8) {
 		sse_pitch=upper->pitch>>3;
-		for (i=0; i<8; i++) ((short*)&one)[i]=1;
+		for (i=0; i<8; i++) 
+			((short*)&one)[i] = 1;
 	} else {
 		sse_pitch=upper->pitch>>2;
 		for (i=0; i<4; i++) ((int*)&one)[i]=1;
@@ -559,43 +655,63 @@ void collapse(struct_level* lower, struct_level* upper) {
 	else            	inflate_line_int(&((int*)lower->data)[lp],(int*)g_line0,upper->pitch);
 	lp+=lower->pitch;
 
-	if (g_workbpp==8)	for (x=0; x<sse_pitch; x++) upper_p[x]=_mm_add_epi16(upper_p[x],((__m128i*)g_line0)[x]);
-	else            	for (x=0; x<sse_pitch; x++) upper_p[x]=_mm_add_epi32(upper_p[x],((__m128i*)g_line0)[x]);
+	if (g_workbpp==8)	
+		for (x=0; x<sse_pitch; x++) 
+			upper_p[x]=_mm_add_epi16(upper_p[x],((__m128i*)g_line0)[x]);
+	else            	
+		for (x=0; x<sse_pitch; x++) 
+			upper_p[x]=_mm_add_epi32(upper_p[x],((__m128i*)g_line0)[x]);
 	upper_p+=sse_pitch;
 
 	for (y=1; y<lower->h; y++) {
-		if (g_workbpp==8) {
+		if (g_workbpp==8) 
+		{
 			inflate_line_short(&((short*)lower->data)[lp],(short*)g_line1,upper->pitch);
 			lp+=lower->pitch;
-			for (x=0; x<sse_pitch; x++) {
+			for (x=0; x<sse_pitch; x++) 
+			{
 				sse_mix=_mm_add_epi16(((__m128i*)g_line0)[x],((__m128i*)g_line1)[x]);
 				sse_mix=_mm_add_epi16(sse_mix,one);
 				sse_mix=_mm_srai_epi16(sse_mix,1);
 				upper_p[x]=_mm_add_epi16(upper_p[x],sse_mix);
 			}
-		} else {
+		} 
+		else 
+		{
 			inflate_line_int(&((int*)lower->data)[lp],(int*)g_line1,upper->pitch);
 			lp+=lower->pitch;
-			for (x=0; x<sse_pitch; x++) {
+			for (x=0; x<sse_pitch; x++) 
+			{
 				sse_mix=_mm_add_epi32(((__m128i*)g_line0)[x],((__m128i*)g_line1)[x]);
 				sse_mix=_mm_add_epi32(sse_mix,one);
 				sse_mix=_mm_srai_epi32(sse_mix,1);
 				upper_p[x]=_mm_add_epi32(upper_p[x],sse_mix);
 			}
 		}
-		upper_p+=sse_pitch;
+		upper_p += sse_pitch;
 
 		if (y==lower->h-1 && y_extra) break;
 
-		if (g_workbpp==8) for (x=0; x<sse_pitch; x++) upper_p[x]=_mm_add_epi16(upper_p[x],((__m128i*)g_line1)[x]);
-		else              for (x=0; x<sse_pitch; x++) upper_p[x]=_mm_add_epi32(upper_p[x],((__m128i*)g_line1)[x]);
-		upper_p+=sse_pitch;
+		if (g_workbpp==8) 
+			for (x=0; x<sse_pitch; x++) 
+				upper_p[x] = _mm_add_epi16(upper_p[x],((__m128i*)g_line1)[x]);
+		else 
+			for (x=0; x<sse_pitch; x++) 
+				upper_p[x] = _mm_add_epi32(upper_p[x],((__m128i*)g_line1)[x]);
+		upper_p += sse_pitch;
 
-		swap=g_line0;
-		g_line0=g_line1;
-		g_line1=swap;
+		swap = g_line0;
+		g_line0 = g_line1;
+		g_line1 = swap;
 	}
 
+}
+
+void collapse_opencv(const cv::Mat &lower, cv::Mat &upper)
+{
+	cv::Mat tmp;
+	cv::resize(lower, tmp, upper.size());
+	upper += tmp;
 }
 
 void dither(struct_level* top, void* channel) {
@@ -606,22 +722,33 @@ void dither(struct_level* top, void* channel) {
 	int dith_off=0;
 	int dp=0;
 
-	if (g_workbpp==8) {
-		if (RAND_MAX==32767) for (i=0; i<1024; i++) g_dither[i]=rand()>>(15-ACCURACY);
-		else for (i=0; i<1024; i++) g_dither[i]=rand()>>(31-ACCURACY);
+	if (g_workbpp==8) 
+	{
+		if (RAND_MAX==32767) // 2 bytes
+			for (i=0; i<1024; i++) g_dither[i]=rand()>>(15-ACCURACY);
+		else 
+			for (i=0; i<1024; i++) g_dither[i]=rand()>>(31-ACCURACY);
 
-		for (y=0; y<g_workheight; y++) {
-			dith_off-=32;
-			if (dith_off<0) dith_off=992;
-			for (x=0; x<g_workwidth; x++) {
-				q=(((short*)top->data)[dp+x]+g_dither[dith_off+(x&31)])>>ACCURACY;
-				if (q<0) q=0; else if (q>255) q=0xff;
-				((uint8*)channel)[p++]=q;
+		for (y=0; y<g_workheight; y++) 
+		{
+			dith_off -= 32;
+			if (dith_off < 0) 
+				dith_off = 992;
+			for (x=0; x<g_workwidth; x++) 
+			{
+				q = (((short*)top->data)[dp + x] + g_dither[dith_off + (x&31)])>>ACCURACY;
+				if (q < 0) 
+					q = 0; 
+				else if (q > 255) 
+					q = 0xff;
+				((uint8*)channel)[p++] = q;
 			}
 
-			dp+=top->pitch;
+			dp += top->pitch;
 		}
-	} else {
+	} 
+	else 
+	{
 		if (RAND_MAX==32767) for (i=0; i<1024; i++) g_dither[i]=rand()>>7;
 		else for (i=0; i<1024; i++) g_dither[i]=rand()>>23;
 
@@ -635,6 +762,43 @@ void dither(struct_level* top, void* channel) {
 			}
 
 			dp+=top->pitch;
+		}
+	}
+}
+
+void dither_opencv(cv::Mat &top, cv::Mat &out)
+{
+	int dith_off = 0;
+	std::vector<int> dither_array(1024);
+	if (RAND_MAX == 32767) // 2 bytes
+		for (int i = 0; i < 1024; ++i) 
+			dither_array[i] = rand() >> (15 - ACCURACY);
+	else
+		for (int i = 0; i < 1024; ++i) 
+			dither_array[i] = rand() >> (31 - ACCURACY);
+
+	int chsize = top.channels();
+	if (chsize == 3)
+		out = cv::Mat(top.size(), CV_8UC3);
+	else if (chsize == 1)
+		out = cv::Mat(top.size(), CV_8UC1);
+
+	for (int y = 0; y < top.rows; ++y)
+	{
+		dith_off -= 32;
+		if (dith_off < 0)
+			dith_off = 992;
+
+		uint8_t *ptop = top.ptr(y);
+		uint8_t *pout = out.ptr(y);
+
+		for (int x = 0; x < top.cols; ++x)
+		{
+			for (int c = 0; c < chsize; ++c)
+			{
+				int q = (ptop[x*chsize + c] + g_dither[dith_off + (x & 31)]) >> ACCURACY;
+				pout[x*chsize + c] = std::max(0, std::min(q, 255));
+			}
 		}
 	}
 }
@@ -797,6 +961,32 @@ void blend() {
 		dither(&g_output_pyramid[0],g_out_channels[c]);
 		dither_time+=timer.read();
 	}
+
+	///////////////////////////////////////////////////////////////////////////////////////////
+	/*g_cvmatpyramids.resize(g_levels);
+	g_cvoutput_pyramid.resize(g_levels);
+
+
+	for (i = 0; i<g_numimages; i++) {
+		copy_channel_opencv(i);
+
+		for (l = 0; l<g_levels - 1; l++) 
+			shrink_hps_opencv(g_cvmatpyramids[l], g_cvmatpyramids[l+1], l);
+
+
+		for (l = 0; l<g_levels; l++) 
+			mask_into_output_opencv(i, l, i==0);
+	}
+
+
+	for (l = g_levels - 1; l > 0; l--)
+		collapse_opencv(g_cvoutput_pyramid[l], g_cvoutput_pyramid[l - 1]);
+	
+	dither_opencv(g_cvoutput_pyramid[0], g_cvout);
+	cv::imwrite("output_opencv.png", g_cvout);
+	*/
+	///////////////////////////////////////////////////////////////////////////////////////////
+
 
 	if (g_timing) {
 		printf("\n");

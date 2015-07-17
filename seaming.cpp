@@ -754,7 +754,7 @@ void write_g_edt()
 	cv::imwrite("seam_image.png", mat_image);
 }
 
-void seam(const std::vector<cv::Mat> &masks) {
+void seam(cv::Mat &nums) {
 	int i;
 
 	output(1,"seaming...\n");
@@ -771,10 +771,10 @@ void seam(const std::vector<cv::Mat> &masks) {
 			leftupxy();
 			rightdownxy();
 
-			/*
-			cv::Mat dist;
+			
+			/*cv::Mat dist;
 			cv::Mat nums;
-			set_g_edt_opencv(dist, nums, masks);
+			set_g_edt_opencv(dist, nums, g_cvmasks);
 			cv::imwrite("seam_dist_opencv.png", dist / 5);
 			cv::imwrite("seam_image_opencv.png", nums * 30);
 			write_g_edt();

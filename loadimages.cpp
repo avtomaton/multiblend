@@ -1254,10 +1254,10 @@ void mat2struct(int i, const std::string &filename, cv::Mat &matimage, const cv:
 	free(untrimmed);
 }
 
-void load_images(std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
+void load_images() {
 	char buf[256];
 
-	cv::Mat dist(mats[0].size(), CV_32S);
+	cv::Mat dist(g_cvmats[0].size(), CV_32S);
 	for (int i = 0; i < g_numimages; ++i) {
 		//cv::Mat matimage = cv::imread(argv[i], CV_LOAD_IMAGE_COLOR);
 		//cv::Mat mask = cv::imread(std::string("mask_") + std::string(argv[i]), CV_LOAD_IMAGE_GRAYSCALE);
@@ -1266,7 +1266,7 @@ void load_images(std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) 
 		#else
 		sprintf(buf, "%d/", i);
 		#endif
-		mat2struct(i, buf, mats[i], masks[i], dist);
+		mat2struct(i, buf, g_cvmats[i], g_cvmasks[i], dist);
 	}
 
 	if (g_crop) tighten();

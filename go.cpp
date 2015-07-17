@@ -33,7 +33,7 @@ void clean_globals()
 	free(g_images);
 }
 
-void go(std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
+void go() {
 	int blend_wh;
 	int i;
 	int pitch;
@@ -51,16 +51,16 @@ void go(std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
 		}
 	}
 
-	if (mats.size()==1 && g_caching) {
+	if (g_cvmats.size()==1 && g_caching) {
 		output(1,"Only one input image; caching disabled\n");
 		g_caching=false;
 	}
 
 	timer.set();
 
-	g_numimages = (int)mats.size();
-	if (mats.size() != masks.size())
-		die("mats.size() != masks.size()");
+	g_numimages = (int)g_cvmats.size();
+	if (g_cvmats.size() != g_cvmasks.size())
+		die("g_cvmats.size() != g_cvmasks.size()");
 
 	g_images = (struct_image*)malloc(g_numimages*sizeof(struct_image));
 
@@ -71,7 +71,7 @@ void go(std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
 		for (int c = 0; c < g_numchannels; ++c) g_images[i].channels[c].f = 0;
 	}
 
-	load_images(mats, masks);
+	load_images();
 
 	if (g_numimages==0) die("no valid input files");
 
@@ -113,11 +113,12 @@ void go(std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
 
 	// calculate seams
 	timer.set();
+	cv::Mat nums;
 	if (g_pseudowrap) {
 		//maybe memory leak
 		pseudowrap_seam();
 	} else {
-		seam(masks);
+		seam(nums);
 	}
 	timer.report("seaming");
 

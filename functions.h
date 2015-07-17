@@ -212,7 +212,7 @@ int search_l(const cv::Mat &mask, float left, float right, bool isy);
 int search_r(const cv::Mat &mask, float left, float right, bool isy);
 cv::Rect get_visible_rect(const cv::Mat &mask);
 void mat2struct(int i, const std::string &filename, cv::Mat &matimage, const cv::Mat &mask, cv::Mat &dist);
-void load_images(std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks);
+void load_images();
 
 //seaming
 void seam_png(int mode, const char* filename);
@@ -221,7 +221,7 @@ void rightdownxy();
 void leftupxy();
 void simple_seam();
 void make_seams();
-void seam(const std::vector<cv::Mat> &masks);
+void seam(cv::Mat &nums);
 
 //maskpyramids
 void png_mask(int i);
@@ -254,7 +254,7 @@ void pseudowrap_seam();
 void pseudowrap_unsplit();
 
 //go
-void go(std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks);
+void go();
 
 //multiblend
 void help();
