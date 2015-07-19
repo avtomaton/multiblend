@@ -56,18 +56,27 @@ void seam_png(int mode, const char* filename) {
 	fopen_s(&f, filename, "wb");
 	if (!f) {
 		output(0,"WARNING: couldn't save seam file\n");
+		free(mask);
+		free(masklimit);
+		free(maskcount);
 		return;
 	}
 
 	png_ptr=png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
 	if (!png_ptr) {
 		output(0,"WARNING: PNG create failed\n");
+		free(mask);
+		free(masklimit);
+		free(maskcount);
 		return;
 	}
 
 	info_ptr=png_create_info_struct(png_ptr);
 	if (!info_ptr) {
 		png_destroy_write_struct(&png_ptr,(png_infopp)NULL);
+		free(mask);
+		free(masklimit);
+		free(maskcount);
 		return;
 	}
 
@@ -609,8 +618,8 @@ void init_seamdist(cv::Mat &dist, cv::Mat &nums, const std::vector<cv::Mat> &mas
 
 void set_g_edt_opencv(cv::Mat &dist, cv::Mat &nums, const std::vector<cv::Mat> &masks, float overlap_of_pano_split = 1.1)
 {
-	dist = cv::Mat(g_workheight, g_workwidth, CV_32S);
-	nums = cv::Mat(g_workheight, g_workwidth, CV_8U);
+	dist = cv::Mat(masks[0].size(), CV_32S);
+	nums = cv::Mat(masks[0].size(), CV_8U);
 	
 	init_seamdist(dist, nums, masks);
 
@@ -621,32 +630,32 @@ void set_g_edt_opencv(cv::Mat &dist, cv::Mat &nums, const std::vector<cv::Mat> &
 
 //vertical
 	xbeg = 0;
-	xend = g_workwidth;
+	xend = dist.cols;
 
 	// top to bottom
 	ybeg = 1;
-	yend = g_workheight;
+	yend = dist.rows;
 	for (int i = 0; i < N; ++i)
 		find_distances_cycle_y_vert<uint8_t>(dist, nums, masks[i], 1, ybeg, yend, xbeg, xend, 0, 0, false, true, true);
 
 	// bottom to top
-	ybeg = g_workheight - 1 - 1;
+	ybeg = dist.rows - 1 - 1;
 	yend = -1;
 	for (int i = 0; i < N; ++i)
 		find_distances_cycle_y_vert<uint8_t>(dist, nums, masks[i], -1, ybeg, yend, xbeg, xend, 0, 0, false, true, true);
 
 //horizontal
 	ybeg = 0;
-	yend = g_workheight;
+	yend = dist.rows;
 
 	//left to right
 	xbeg = 1;
-	xend = g_workwidth; // overlap_of_pano_split * g_workwidth;
+	xend = dist.cols; // overlap_of_pano_split * g_workwidth;
 	for (int i = 0; i < N; ++i)
 		find_distances_cycle_y_horiz<uint8_t>(dist, nums, masks[i], 1, ybeg, yend, xbeg, xend, true);
 
 	//right to left
-	xbeg = (g_workwidth - 1) - 1; // overlap_of_pano_split * ((g_workwidth - 1) - 1);
+	xbeg = (dist.cols - 1) - 1; // overlap_of_pano_split * ((g_workwidth - 1) - 1);
 	xend = -1;
 	for (int i = 0; i < N; ++i)
 		find_distances_cycle_y_horiz<uint8_t>(dist, nums, masks[i], -1, ybeg, yend, xbeg, xend, true);
@@ -772,13 +781,9 @@ void seam(cv::Mat &nums) {
 			rightdownxy();
 
 			
-			/*cv::Mat dist;
-			cv::Mat nums;
-			set_g_edt_opencv(dist, nums, g_cvmasks);
-			cv::imwrite("seam_dist_opencv.png", dist / 5);
-			cv::imwrite("seam_image_opencv.png", nums * 30);
-			write_g_edt();
-			*/
+			//cv::Mat dist;
+			//set_g_edt_opencv(dist, g_cvseams, g_cvmasks);
+			
 
 			make_seams();
 

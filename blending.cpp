@@ -365,6 +365,7 @@ void hps_opencv(cv::Mat &upper, const cv::Mat &lower)
 }
 
 void shrink_hps_opencv(cv::Mat &upper, cv::Mat &lower, int l) {
+	printf("shrink_hps_opencv(%d)\n", l);
 	shrink_opencv(upper, lower, l);
 	hps_opencv(upper, lower);
 }
@@ -484,7 +485,8 @@ void copy_channel(int i, int c) {
 
 void copy_channel_opencv(int i)
 {
-	g_cvmats[i].convertTo(g_cvmatpyramids[0], CV_16U);
+	printf("copy_channel_opencv(%d)\n",i);
+	g_cvmats[i].convertTo(g_cvmatpyramids[0], CV_16S);
 	g_cvmatpyramids[0] *= 1 << ACCURACY;
 }
 
@@ -570,7 +572,7 @@ void mask_into_output(struct_level* input, float* mask, struct_level* output, bo
 			else 
 			{
 				if (g_workbpp==8)
-					((short*)out_p)[x]+=(int)(((int16*)input_line)[x]*pixel.f+0.5); // threshold of mask
+					((short*)out_p)[x]+=(int)(((int16*)input_line)[x]*pixel.f+0.5);
 				else
 					((int*)out_p)[x]+=(int)(((int*)input_line)[x]*pixel.f+0.5);
 				x++;
@@ -593,9 +595,8 @@ void mask_into_output(struct_level* input, float* mask, struct_level* output, bo
 void mask_into_output_opencv(int i, int l, bool first)
 {
 	int rows = g_cvmatpyramids[l].rows;
-	int cols = g_cvmatpyramids[l].cols;
-	if (l == 9 && i == 0) 
-		printf("mask_into_output_opencv: i = %d, l = %d, rows = %d, cols = %d\n", i, l, rows, cols);
+	int cols = g_cvmatpyramids[l].cols; 
+	printf("mask_into_output_opencv: i = %d, l = %d, rows = %d, cols = %d\n", i, l, rows, cols);
 	int chsize = g_cvmatpyramids[l].channels();
 
 	if (first)
@@ -605,12 +606,18 @@ void mask_into_output_opencv(int i, int l, bool first)
 	{
 		const cv::Vec3s *pmat = g_cvmatpyramids[l].ptr<cv::Vec3s>(y);
 		cv::Vec3s *pout = g_cvoutput_pyramid[l].ptr<cv::Vec3s>(y);
-		uint8_t *pmask = g_cvmaskpyramids[i][l].ptr(y);
+		float *pmask = g_cvmaskpyramids[i][l].ptr<float>(y);
 		for (int x = 0; x < cols; ++x)
 		{
-			if (pmask[x] < 128)
+			if (pmask[x] == 0.0f)
 				continue;
-			pout[x] = pmat[x];
+			else if (pmask[x] == 1.0f)
+				pout[x] = pmat[x];
+			else
+			{
+				for (int c = 0; c < 3; ++c)
+					pout[x][c] += (int)(pmask[x] * pmat[x][c] + 0.5);
+			}
 		}
 	}
 
@@ -709,6 +716,7 @@ void collapse(struct_level* lower, struct_level* upper) {
 
 void collapse_opencv(const cv::Mat &lower, cv::Mat &upper)
 {
+	printf("collapse_opencv\n");
 	cv::Mat tmp;
 	cv::resize(lower, tmp, upper.size());
 	upper += tmp;
@@ -780,8 +788,7 @@ void dither_opencv(cv::Mat &top, cv::Mat &out)
 	int chsize = top.channels();
 	if (chsize == 3)
 		out = cv::Mat(top.size(), CV_8UC3);
-	else if (chsize == 1)
-		out = cv::Mat(top.size(), CV_8UC1);
+	else die("out is not 3color");
 
 	for (int y = 0; y < top.rows; ++y)
 	{
@@ -789,15 +796,15 @@ void dither_opencv(cv::Mat &top, cv::Mat &out)
 		if (dith_off < 0)
 			dith_off = 992;
 
-		uint8_t *ptop = top.ptr(y);
-		uint8_t *pout = out.ptr(y);
+		cv::Vec3s *ptop = top.ptr<cv::Vec3s>(y);
+		cv::Vec3b *pout = out.ptr<cv::Vec3b>(y);
 
 		for (int x = 0; x < top.cols; ++x)
 		{
-			for (int c = 0; c < chsize; ++c)
+			for (int c = 0; c < 3; ++c)
 			{
-				int q = (ptop[x*chsize + c] + g_dither[dith_off + (x & 31)]) >> ACCURACY;
-				pout[x*chsize + c] = std::max(0, std::min(q, 255));
+				int q = (ptop[x][c] + g_dither[dith_off + (x & 31)]) >> ACCURACY;
+				pout[x][c] = std::max(0, std::min(q, 255));
 			}
 		}
 	}
@@ -982,6 +989,17 @@ void blend() {
 	for (l = g_levels - 1; l > 0; l--)
 		collapse_opencv(g_cvoutput_pyramid[l], g_cvoutput_pyramid[l - 1]);
 	
+	cv::Mat tmpout, tmpout2;
+	tmpout = g_cvoutput_pyramid[0].clone();
+	tmpout /= 1 << ACCURACY;
+	tmpout.convertTo(tmpout2, CV_8U);
+	std::string outstring = "collapse";
+	outstring += "_";
+	outstring += std::to_string(0);
+	outstring += ".png";
+	cv::imwrite(outstring, tmpout2);
+
+
 	dither_opencv(g_cvoutput_pyramid[0], g_cvout);
 	cv::imwrite("output_opencv.png", g_cvout);
 	*/

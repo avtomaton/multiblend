@@ -379,4 +379,8 @@ void opencv_out()
 		}
 	}
 	cv::imwrite("out.tif", outmat);
+	free(maskcount);
+	free(masklimit);
+	free(mask);
+
 }

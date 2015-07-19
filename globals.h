@@ -61,6 +61,8 @@ extern bool g_bigtiff;
 extern bool g_bgr;
 extern uint32* g_edt;
 extern struct_image* g_images;
+
+extern cv::Mat g_cvseams;
 extern std::vector<std::vector<cv::Mat> > g_cvmaskpyramids;
 extern std::vector<cv::Mat> g_cvmatpyramids;
 extern std::vector<cv::Mat> g_cvmats;
