@@ -845,21 +845,6 @@ void inpaint(struct_image* image, uint32* edt) {
 	if (image->bpp==8) inpaint8(image,edt); else inpaint16(image,edt);
 }
 
-bool is_two_areas(const cv::Mat &mask, struct_image* image)
-{
-	bool two_areas = true;
-	for (int y = image->ypos; y < (image->ypos + image->height); ++y)
-	{
-		int x = image->xpos + image->width / 2;
-		if (mask.at<uint8_t>(y, x))
-		{
-			two_areas = false;
-			break;
-		}
-	}
-	return two_areas;
-}
-
 void init_dist(const cv::Mat &mask, cv::Mat &dist, struct_image* image)
 {
 	for (int y = image->ypos; y < (image->ypos + image->height); ++y)
@@ -875,7 +860,6 @@ void init_dist(const cv::Mat &mask, cv::Mat &dist, struct_image* image)
 		}
 	}
 }
-
 
 void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::Mat &dist)
 {
@@ -901,12 +885,12 @@ void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::
 	ybeg = image->ypos + 1;
 	yend = image->ypos + image->height;
 
-	find_distances_cycle_y_vert<cv::Vec3b>(dist, mat, mask, 1, ybeg, yend, xbeg, xend, xl, xr, two_areas, false, false);
+	find_distances_cycle_y_vert<cv::Vec3b>(dist, mat, mask, 1, ybeg, yend, xbeg, xend, xl, xr, two_areas, false, L_STRAIGHT, L_DIAG);
 
 	// bottom to top
 	ybeg = image->ypos + image->height - 1 - 1;
 	yend = image->ypos - 1;
-	find_distances_cycle_y_vert<cv::Vec3b>(dist, mat, mask, -1, ybeg, yend, xbeg, xend, xl, xr, two_areas, false, false);
+	find_distances_cycle_y_vert<cv::Vec3b>(dist, mat, mask, -1, ybeg, yend, xbeg, xend, xl, xr, two_areas, false, L_STRAIGHT, L_DIAG);
 
 //horizontal
 	ybeg = image->ypos;
@@ -915,12 +899,12 @@ void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::
 	//left to right
 	xbeg = image->xpos + 1;
 	xend = xr;
-	find_distances_cycle_y_horiz<cv::Vec3b>(dist, mat, mask, 1, ybeg, yend, xbeg, xend, false);
+	find_distances_cycle_y_horiz<cv::Vec3b>(dist, mat, mask, 1, ybeg, yend, xbeg, xend, false, L_STRAIGHT);
 
 	//right to left
 	xbeg = (image->xpos + image->width - 1) - 1;
 	xend = xl - 1;
-	find_distances_cycle_y_horiz<cv::Vec3b>(dist, mat, mask, -1, ybeg, yend, xbeg, xend, false);
+	find_distances_cycle_y_horiz<cv::Vec3b>(dist, mat, mask, -1, ybeg, yend, xbeg, xend, false, L_STRAIGHT);
 }
 
 void tighten() {
