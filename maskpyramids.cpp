@@ -429,11 +429,6 @@ cv::Mat top_mask_to_cvmat(int i, int l, int w, int h)
 	return out;
 }
 
-void shrink_mask_opencv(cv::Mat &input, cv::Mat &output, int outwidth, int outheight)
-{
-	cv::resize(input, output, cv::Size(outwidth, outheight));
-}
-
 void write_mask(cv::Mat &mask, int i, int l)
 {
 	//cv::Mat mat = top_mask_to_cvmat(i, l, ow, oh);
@@ -467,21 +462,19 @@ void shrink_masks() {
 		for (i=0; i<g_numimages; i++) png_mask(i);
 	}
 }
+
 void shrink_masks_opencv() {
 	int i, l;
 	int w, h;
 	int ow, oh;
 
-	cv::Mat sum_mask = cv::Mat::zeros(g_cvmaskpyramids[0][0].size(), g_cvmaskpyramids[0][0].type());
-
 	for (i = 0; i<g_numimages; i++) {
 		w = g_cvmaskpyramids[i][0].cols;
 		h = g_cvmaskpyramids[i][0].rows;
-		sum_mask += g_cvmaskpyramids[i][0];
 		for (l = 0; l < g_levels - 1; ++l) {
-			ow = (w) >> 1;
-			oh = (h) >> 1;
-			if (ow % 2 == 0 && oh % 2 == 0)
+			ow = (w + 1) >> 1;
+			oh = (h + 1) >> 1;
+			if (ow % 2 != 0 && oh % 2 != 0)
 			{
 				cv::resize(g_cvmaskpyramids[i][l], g_cvmaskpyramids[i][l + 1], cv::Size(ow, oh));
 			}
@@ -490,8 +483,8 @@ void shrink_masks_opencv() {
 				cv::Mat tmp;
 				cv::resize(g_cvmaskpyramids[i][l], tmp, cv::Size(ow, oh));
 				
-				if (ow % 2 != 0) ++ow;
-				if (oh % 2 != 0) ++oh;
+				if (ow % 2 == 0) ++ow;
+				if (oh % 2 == 0) ++oh;
 				g_cvmaskpyramids[i][l + 1] = cv::Mat(oh, ow, g_cvmaskpyramids[i][l].type());
 				for (int y = 0; y < tmp.rows; ++y)
 				{
@@ -499,9 +492,11 @@ void shrink_masks_opencv() {
 					float *pmat = g_cvmaskpyramids[i][l + 1].ptr<float>(y);
 					for (int x = 0; x < tmp.cols; ++x)
 						pmat[x] = ptmp[x];
+
 					for (int x = tmp.cols; x < ow; ++x)
 						pmat[x] = pmat[tmp.cols - 1];
 				}
+
 				float *pborder = g_cvmaskpyramids[i][l + 1].ptr<float>(tmp.rows - 1);
 				for (int y = tmp.rows; y < oh; ++y)
 				{
@@ -511,19 +506,10 @@ void shrink_masks_opencv() {
 				}
 			}
 			
-			if (l == 0)
-			{
-				write_mask(g_cvmaskpyramids[i][l], i, l);
-				std::string out_path = std::string("maskpyramids\\g_cvmasks_") + std::to_string(i) + std::string("_") + std::to_string(l) + std::string(".bmp");
-				cv::imwrite(out_path, g_cvmasks[i]);
-			}
-			write_mask(g_cvmaskpyramids[i][l + 1], i, l + 1);
-
 			w = ow;
 			h = oh;
 		}
 	}
-	write_mask(sum_mask, 0, 0);
 }
 
 void extract_top_masks_opencv()
@@ -533,8 +519,8 @@ void extract_top_masks_opencv()
 	int cols = g_workwidth;
 	int rows = g_workheight;
 
-	if (cols % 2 != 0) ++cols;
-	if (rows % 2 != 0) ++rows;
+	if (cols % 2 == 0) ++cols;
+	if (rows % 2 == 0) ++rows;
 
 	for (int i = 0; i < g_numimages; ++i)
 	{
@@ -555,6 +541,7 @@ void extract_top_masks_opencv()
 				continue;
 			pmasks[pseam[x]][x] = 1.0f;
 		}
+
 		for (int x = g_workwidth; x < cols; ++x)
 			for (int i = 0; i < g_numimages; ++i)
 				pmasks[i][x] = pmasks[i][g_workwidth - 1];
@@ -572,6 +559,33 @@ void extract_top_masks_opencv()
 	}
 }
 
+cv::Mat get_mask(int i, int l, int w, int h)
+{
+	int32 this_count = 0;
+	float mask;
+	int p = 0;
+	int32 counter = 0;
+
+	cv::Mat out(h, w, CV_32F);
+	for (int y = 0; y < h; ++y)
+	{
+		float *pout = out.ptr<float>(y);
+		for (int x = 0; x < w; ++x)
+		{
+			if (counter >= this_count)
+			{
+				counter = 0;
+				this_count = -((int32*)g_images[i].masks[l])[p++];
+				mask = g_images[i].masks[l][p++];
+			}
+
+			pout[x] = mask;
+			counter++;
+		}
+	}
+	return out;
+}
+
 void mask_pyramids() {
 	output(1,"masks...\n");
 
@@ -579,4 +593,42 @@ void mask_pyramids() {
 	extract_top_masks_opencv();
 	shrink_masks();
 	shrink_masks_opencv();
+
+	for (int i = 0; i < g_numimages; ++i)
+	{
+		int w = g_workwidth;
+		int h = g_workheight;
+		for (int l = 0; l < g_levels; ++l)
+		{
+			cv::Mat mat = get_mask(i, l, w, h);
+			cv::Mat tmp;
+			mat.convertTo(tmp, CV_8U);
+			std::string outstring = "maskpyramids\\maskpyramid";
+			outstring += "_";
+			outstring += std::to_string(i);
+			outstring += "_";
+			outstring += std::to_string(l);
+			outstring += ".png";
+			cv::imwrite(outstring, tmp * 255);
+			w = (w + 2) >> 1;
+			h = (h + 2) >> 1;
+		}
+	}
+
+	for (int i = 0; i < g_numimages; ++i)
+	{
+		for (int l = 0; l < g_levels; ++l)
+		{
+			cv::Mat mat = g_cvmaskpyramids[i][l];
+			cv::Mat tmp;
+			mat.convertTo(tmp, CV_8U);
+			std::string outstring = "maskpyramids\\maskpyramid";
+			outstring += "_";
+			outstring += std::to_string(i);
+			outstring += "_";
+			outstring += std::to_string(l);
+			outstring += "_opencv.png";
+			cv::imwrite(outstring, tmp * 255);
+		}
+	}
 }
