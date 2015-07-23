@@ -738,7 +738,6 @@ void mask_into_output(struct_level* input, float* mask, struct_level* output, bo
 
 void mask_into_output_opencv(int i, int l, bool first)
 {
-	printf("mask_into_output_opencv: i = %d, l = %d, %d x %d\n", i, l, g_cvmaskpyramids[i][l].cols, g_cvmaskpyramids[i][l].rows);
 	int chsize = g_cvmatpyramids[l].channels();
 
 	if (first)
@@ -1170,7 +1169,8 @@ void blend() {
 	double mio_time=0;
 
 	g_out_channels=(void**)malloc(g_numchannels*sizeof(void*));
-	std::vector<std::vector<std::vector<cv::Mat> > > channels_pyramid(g_numimages);
+	
+	/*std::vector<std::vector<std::vector<cv::Mat> > > channels_pyramid(g_numimages);
 	std::vector<std::vector<cv::Mat> > channels_outpyramid(g_levels);
 	for (i = 0; i<g_numimages; i++)
 	{ 
@@ -1180,7 +1180,7 @@ void blend() {
 	}
 	for (l = 0; l < g_levels; l++)
 		channels_outpyramid[l].resize(g_numchannels);
-
+	*/
 
 	for (c=0; c<g_numchannels; c++) {
 		for (i=0; i<g_numimages; i++) {
@@ -1193,9 +1193,9 @@ void blend() {
 			{
 				shrink_hps(&PY(i, l), &PY(i, l + 1));
 				hps(&PY(i, l), &PY(i, l + 1));
-				channels_pyramid[i][l][g_numchannels - 1 - c] = get_cvpyramid(&PY(i, l));
-				if (l == g_levels - 2)
-					channels_pyramid[i][l+1][g_numchannels - 1 - c] = get_cvpyramid(&PY(i, l+1));
+				//channels_pyramid[i][l][g_numchannels - 1 - c] = get_cvpyramid(&PY(i, l));
+				//if (l == g_levels - 2)
+				//	channels_pyramid[i][l+1][g_numchannels - 1 - c] = get_cvpyramid(&PY(i, l+1));
 			}
 
 			shrink_time+=timer.read();
@@ -1204,7 +1204,7 @@ void blend() {
 			for (l = 0; l < g_levels; l++)
 			{
 				mask_into_output(&PY(i, l), g_images[i].masks[l], &g_output_pyramid[l], i == 0);
-				channels_outpyramid[l][g_numchannels - 1 - c] = get_cvpyramid(&g_output_pyramid[l]);
+				//channels_outpyramid[l][g_numchannels - 1 - c] = get_cvpyramid(&g_output_pyramid[l]);
 			}
 			mio_time+=timer.read();
 		}
@@ -1269,15 +1269,15 @@ void blend() {
 		{
 			shrink_hps_opencv(&PY(i, l), &PY(i, l + 1), g_cvmatpyramids[l], g_cvmatpyramids[l + 1]);
 			hps_opencv(&PY(i, l), &PY(i, l + 1), g_cvmatpyramids[l], g_cvmatpyramids[l + 1]);
-			channels_pyramid[i][l][0] = get_cvpyramid(g_cvmatpyramids[l]);
-			if (l == g_levels - 2)
-				channels_pyramid[i][l + 1][0] = get_cvpyramid(g_cvmatpyramids[l+1]);
+			//channels_pyramid[i][l][0] = get_cvpyramid(g_cvmatpyramids[l]);
+			//if (l == g_levels - 2)
+			//	channels_pyramid[i][l + 1][0] = get_cvpyramid(g_cvmatpyramids[l+1]);
 		}
 
 		for (l = 0; l < g_levels; l++)
 		{
 			mask_into_output_opencv(i, l, i == 0);
-			channels_outpyramid[l][0] = get_cvpyramid(g_cvoutput_pyramid[l]);
+			//channels_outpyramid[l][0] = get_cvpyramid(g_cvoutput_pyramid[l]);
 		}
 	}
 
