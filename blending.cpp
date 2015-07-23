@@ -357,32 +357,36 @@ void shrink_hps(struct_level* upper, struct_level* lower) {
 	//hps(upper,lower);
 }
 
-void resizedown(const cv::Mat &umat, cv::Mat &lmat)
+void resizedown(const cv::Mat &umat, cv::Mat &lmat, const cv::Size &ofs)
 {
-	lmat = cv::Mat((umat.rows + 1) >> 1, (umat.cols + 1) >> 1, CV_16SC3);
+	//printf("resizedown\n");
+	int uh = umat.rows;
+	int uw = umat.cols;
+	int lw = (uw + 1) >> 1;
+	int lh = (uh + 1) >> 1;
 
-	cv::Mat tmp(umat.rows, lmat.cols, CV_32SC3);
+	cv::Mat tmp(uh, lw, CV_32SC3);
 	cv::Vec3i eights(8);
-	for (int y = 0; y < umat.rows; ++y)
+	for (int y = 0; y < uh; ++y)
 	{
 		auto ptmp = tmp.ptr<cv::Vec3i>(y);
 		auto pumat = umat.ptr<cv::Vec3s>(y);
-		for (int x = 1; x < lmat.cols - 1; ++x)
+		for (int x = 1; x < lw - 1; ++x)
 		{
 			ptmp[x] = pumat[2 * x - 1] + 2 * pumat[2 * x] + pumat[2 * x + 1];
 		}
 		ptmp[0] = 3 * pumat[0] + pumat[1];
-		ptmp[lmat.cols - 1] = 3 * pumat[2 * (lmat.cols - 1)] + pumat[2 * (lmat.cols - 1) - 1];
+		ptmp[lw - 1] = 3 * pumat[2 * (lw - 1)] + pumat[2 * (lw - 1) - 1];
 	}
 
-	for (int x = 0; x < lmat.cols; ++x)
+	for (int x = 0; x < lw; ++x)
 	{
-		for (int y = 1; y < lmat.rows - 1; ++y)
+		for (int y = 1; y < lh - 1; ++y)
 		{
-			lmat.at<cv::Vec3s>(y, x) = (tmp.at<cv::Vec3i>(2 * y - 1, x) + 2 * tmp.at<cv::Vec3i>(2 * y, x) + tmp.at<cv::Vec3i>(2 * y + 1, x) + eights) / 16;
+			lmat.at<cv::Vec3s>(y + ofs.height, x + ofs.width) = (tmp.at<cv::Vec3i>(2 * y - 1, x) + 2 * tmp.at<cv::Vec3i>(2 * y, x) + tmp.at<cv::Vec3i>(2 * y + 1, x) + eights) / 16;
 		}
-		lmat.at<cv::Vec3s>(0, x) = (3 * tmp.at<cv::Vec3i>(0, x) + tmp.at<cv::Vec3i>(1, x) + eights) / 16;
-		lmat.at<cv::Vec3s>(lmat.rows - 1, x) = (3 * tmp.at<cv::Vec3i>(2 * (lmat.rows - 1), x) + tmp.at<cv::Vec3i>(2 * (lmat.rows - 1) - 1, x) + eights) / 16;
+		lmat.at<cv::Vec3s>(ofs.height, x + ofs.width) = (3 * tmp.at<cv::Vec3i>(0, x) + tmp.at<cv::Vec3i>(1, x) + eights) / 16;
+		lmat.at<cv::Vec3s>(lh - 1 + ofs.height, x + ofs.width) = (3 * tmp.at<cv::Vec3i>(2 * (lh - 1), x) + tmp.at<cv::Vec3i>(2 * (lh - 1) - 1, x) + eights) / 16;
 	}
 }
 
@@ -418,6 +422,7 @@ void resizeup(const cv::Mat &lmat, cv::Mat &umat)
 
 void shrink_opencv(struct_level* upper, struct_level* lower, const cv::Mat &umat, cv::Mat &lmat)
 {
+	//printf("shrink_opencv\n");
 	int x_extra0 = (upper->x0 >> 1) - lower->x0;
 	int xlim = (upper->x1 >> 1) - lower->x0; // xpos on lower when we need to wrap last pixel
 	int y_extra0 = (upper->y0 >> 1) - lower->y0;
@@ -425,34 +430,8 @@ void shrink_opencv(struct_level* upper, struct_level* lower, const cv::Mat &umat
 	int lw = lower->w;
 	int lh = lower->h;
 	lmat = cv::Mat(lh, lw, CV_16SC3);
-	cv::Mat tmp;
-	printf("shrink_opencv: %d,%d --> %d,%d\n", umat.cols, umat.rows, lmat.cols, lmat.rows);
+	resizedown(umat, lmat, cv::Size(x_extra0, y_extra0));
 
-	resizedown(umat, tmp);
-	//cv::resize(umat, tmp, cv::Size((umat.cols + 1) >> 1, (umat.rows + 1) >> 1));
-	if (xlim+1 != tmp.cols + x_extra0)
-	{
-		printf("xlim = %d, tmp.cols = %d, x_extra0 = %d\n", xlim, tmp.cols, x_extra0);
-		exit(1);
-	}
-	if (ylim+1 != tmp.rows + y_extra0)
-	{
-		printf("ylim = %d, tmp.rows = %d, y_extra0 = %d\n", ylim, tmp.rows, y_extra0);
-		exit(1);
-	}
-	for (int y = y_extra0; y <= ylim; ++y)
-	{
-		auto pmat = tmp.ptr<cv::Vec3s>(y - y_extra0);
-		auto plevel = lmat.ptr<cv::Vec3s>(y);
-
-		for (int x = x_extra0; x <= xlim; ++x)
-			plevel[x] = pmat[x - x_extra0];
-
-		for (int x = 0; x < x_extra0; ++x)
-			plevel[x] = plevel[x_extra0];
-		for (int x = xlim + 1; x < lw; ++x)
-			plevel[x] = plevel[xlim];
-	}
 	auto pborder = lmat.ptr<cv::Vec3s>(y_extra0);
 	for (int y = 0; y < y_extra0; ++y)
 	{
