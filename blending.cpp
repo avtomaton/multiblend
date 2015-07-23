@@ -394,33 +394,36 @@ void resizedown(const cv::Mat &umat, cv::Mat &lmat, const cv::Size &ofs)
 	}
 }
 
-void resizeup(const cv::Mat &lmat, cv::Mat &umat)
+void resizeup(const cv::Mat &lmat, cv::Mat &umat, const cv::Size &ofs = cv::Size(0,0))
 {
-	umat = cv::Mat((lmat.rows << 1) - 1, (lmat.cols << 1) - 1, lmat.type());
+	int uh = umat.rows;
+	int uw = umat.cols;
+	int lw = (uw + 1) >> 1;
+	int lh = (uh + 1) >> 1;
 	
-	cv::Mat tmp(lmat.rows, umat.cols, lmat.type());
+	cv::Mat tmp(lh, uw, lmat.type());
 	cv::Vec3s ones(1);
-	for (int y = 0; y < lmat.rows; ++y)
+	for (int y = 0; y < lh; ++y)
 	{
 		auto ptmp = tmp.ptr<cv::Vec3s>(y);
-		auto plmat = lmat.ptr<cv::Vec3s>(y);
+		auto plmat = ofs.width + lmat.ptr<cv::Vec3s>(y + ofs.height);
 		
-		for (int x = 0; x < lmat.cols - 1; ++x)
+		for (int x = 0; x < lw - 1; ++x)
 		{
 			ptmp[2 * x] = plmat[x];
 			ptmp[2 * x + 1] = (plmat[x] + plmat[x + 1] + ones) / 2;
 		}
-		ptmp[(lmat.cols - 1) * 2] = plmat[lmat.cols - 1];
+		ptmp[(lw - 1) * 2] = plmat[lw - 1];
 	}
 
-	for (int x = 0; x < umat.cols; ++x)
+	for (int x = 0; x < uw; ++x)
 	{
-		for (int y = 0; y < lmat.rows - 1; ++y)
+		for (int y = 0; y < lh - 1; ++y)
 		{
 			umat.at<cv::Vec3s>(2 * y, x) = tmp.at<cv::Vec3s>(y, x);
 			umat.at<cv::Vec3s>(2 * y + 1, x) = (tmp.at<cv::Vec3s>(y, x) + tmp.at<cv::Vec3s>(y + 1, x) + ones) / 2;
 		}
-		umat.at<cv::Vec3s>((lmat.rows - 1) * 2, x) = tmp.at<cv::Vec3s>(lmat.rows - 1, x);
+		umat.at<cv::Vec3s>((lh - 1) * 2, x) = tmp.at<cv::Vec3s>(lh - 1, x);
 	}
 }
 
@@ -441,6 +444,16 @@ void shrink_opencv(struct_level* upper, struct_level* lower, const cv::Mat &umat
 	Proftimer proftimer_resize(&mprofiler, "resizedown_shrink");
 	resizedown(umat, lmat, cv::Size(x_extra0, y_extra0));
 	proftimer_resize.stop();
+
+	for (int y = y_extra0; y <= ylim; ++y)
+	{
+		auto plmat = lmat.ptr<cv::Vec3s>(y);
+		for (int x = 0; x < x_extra0; ++x)
+			plmat[x] = plmat[x_extra0];
+		for (int x = xlim + 1; x < lw; ++x)
+			plmat[x] = plmat[xlim];
+	}
+
 	auto pborder = lmat.ptr<cv::Vec3s>(y_extra0);
 	for (int y = 0; y < y_extra0; ++y)
 	{
@@ -465,20 +478,10 @@ void hps_opencv(struct_level* upper, struct_level* lower, cv::Mat &umat, const c
 	int y_extra0 = (upper->y0 >> 1) - lower->y0;
 	int ylim = (upper->y1 >> 1) - lower->y0; // ypos on lower when we need to duplicate last rows
 
-	cv::Mat tmp = cv::Mat(ylim+1 - y_extra0, xlim+1 - x_extra0, CV_16SC3);
-	for (int y = y_extra0; y <= ylim; ++y)
-	{
-		cv::Vec3s *pmat = tmp.ptr<cv::Vec3s>(y - y_extra0);
-		const cv::Vec3s *plevel = lmat.ptr<cv::Vec3s>(y);
-
-		for (int x = x_extra0; x <= xlim; ++x)
-			pmat[x - x_extra0] = plevel[x];
-	}
-	cv::Mat tmp2;
+	cv::Mat tmp2(umat.size(), umat.type());
 	Proftimer proftimer_resize(&mprofiler, "resizeup_hps");
-	resizeup(tmp, tmp2);
+	resizeup(lmat, tmp2, cv::Size(x_extra0, y_extra0));
 	proftimer_resize.stop();
-	//cv::resize(tmp, tmp2, cv::Size(umat.cols, umat.rows));
 	umat -= tmp2;
 }
 
@@ -759,6 +762,7 @@ void mask_into_output(struct_level* input, float* mask, struct_level* output, bo
 
 void mask_into_output_opencv(int i, int l, bool first)
 {
+
 	Proftimer proftimer(&mprofiler, "mask_into_output_opencv");
 
 	int chsize = g_cvmatpyramids[l].channels();
@@ -901,8 +905,10 @@ void collapse_opencv(const cv::Mat &lower, cv::Mat &upper)
 	Proftimer proftimer(&mprofiler, "collapse_opencv");
 
 	printf("collapse_opencv\n");
-	cv::Mat tmp;
-	if (lower.cols == (upper.cols + 1) >> 1 && lower.rows == (upper.rows + 1) >> 1)
+	cv::Mat tmp(upper.size(), upper.type());
+	resizeup(lower, tmp);
+
+	/*if (lower.cols == (upper.cols + 1) >> 1 && lower.rows == (upper.rows + 1) >> 1)
 	{
 		Proftimer proftimer_resize(&mprofiler, "resizeup_collapse");
 		resizeup(lower, tmp);
@@ -919,7 +925,7 @@ void collapse_opencv(const cv::Mat &lower, cv::Mat &upper)
 		resizeup(roi, tmp);
 		proftimer_resize.stop();
 		//cv::resize(roi, tmp, upper.size());
-	}
+	}*/
 	upper += tmp;
 }
 
@@ -1206,6 +1212,7 @@ void blend() {
 	double mio_time=0;
 
 	g_out_channels=(void**)malloc(g_numchannels*sizeof(void*));
+
 	/*std::vector<std::vector<std::vector<cv::Mat> > > channels_pyramid(g_numimages);
 	std::vector<std::vector<cv::Mat> > channels_outpyramid(g_levels);
 	for (i = 0; i<g_numimages; i++)
@@ -1217,6 +1224,7 @@ void blend() {
 	for (l = 0; l < g_levels; l++)
 		channels_outpyramid[l].resize(g_numchannels);
 	*/
+
 	Proftimer proftimer_default_version(&mprofiler, "default_version");
 
 	for (c=0; c<g_numchannels; c++) {
