@@ -357,18 +357,16 @@ void shrink_hps(struct_level* upper, struct_level* lower) {
 	//hps(upper,lower);
 }
 
-
-
 void resizedown(const cv::Mat &umat, cv::Mat &lmat)
 {
 	lmat = cv::Mat((umat.rows + 1) >> 1, (umat.cols + 1) >> 1, CV_16SC3);
 	printf("resizedown: %d,%d --> %d,%d\n", umat.cols, umat.rows, lmat.cols, lmat.rows);
 
-	cv::Mat tmp(umat.rows, lmat.cols, CV_16SC3);
-	cv::Vec3s eights(8);
+	cv::Mat tmp(umat.rows, lmat.cols, CV_32SC3);
+	cv::Vec3i eights(8);
 	for (int y = 0; y < tmp.rows; ++y)
 	{
-		cv::Vec3s *ptmp = tmp.ptr<cv::Vec3s>(y);
+		cv::Vec3i *ptmp = tmp.ptr<cv::Vec3i>(y);
 		const cv::Vec3s *pumat = umat.ptr<cv::Vec3s>(y);
 		for (int x = 1; x < tmp.cols - 1; ++x)
 		{
@@ -377,21 +375,16 @@ void resizedown(const cv::Mat &umat, cv::Mat &lmat)
 		ptmp[0] = 3 * pumat[0] + pumat[1];
 		ptmp[tmp.cols - 1] = 3 * pumat[2 * (tmp.cols - 1)] + pumat[2 * (tmp.cols - 1) - 1];
 	}
-	//tmp /= 4;
-	//cv::Mat tmp2;
-	//cv::resize(tmp, tmp2, cv::Size((umat.cols + 1) >> 1, (umat.rows + 1) >> 1));
-	//lmat = tmp2;
+
 	for (int x = 0; x < lmat.cols; ++x)
 	{
 		for (int y = 1; y < lmat.rows - 1; ++y)
 		{
-			lmat.at<cv::Vec3s>(y, x) = (/*tmp.at<cv::Vec3s>(2 * y - 1, x) + */2 * tmp.at<cv::Vec3s>(2 * y, x)/* + tmp.at<cv::Vec3s>(2 * y + 1, x) + eights*/);
+			lmat.at<cv::Vec3s>(y, x) = (tmp.at<cv::Vec3i>(2 * y - 1, x) + 2 * tmp.at<cv::Vec3i>(2 * y, x) + tmp.at<cv::Vec3i>(2 * y + 1, x) + eights) / 16;
 		}
-		//lmat.at<cv::Vec3s>(0, x) = (/*3 * tmp.at<cv::Vec3s>(0, x) + */tmp.at<cv::Vec3s>(1, x) + eights);
-		//lmat.at<cv::Vec3s>(lmat.rows - 1, x) = ((/*1 + */2) * tmp.at<cv::Vec3s>(2 * (lmat.rows - 1), x)/* + tmp.at<cv::Vec3s>(2 * (lmat.rows - 1) - 1, x)*/ + eights);
+		lmat.at<cv::Vec3s>(0, x) = (3 * tmp.at<cv::Vec3i>(0, x) + tmp.at<cv::Vec3i>(1, x) + eights) / 16;
+		lmat.at<cv::Vec3s>(lmat.rows - 1, x) = (3 * tmp.at<cv::Vec3i>(2 * (lmat.rows - 1), x) + tmp.at<cv::Vec3i>(2 * (lmat.rows - 1) - 1, x) + eights) / 16;
 	}
-
-	lmat /= 8;
 }
 
 void resizeup(const cv::Mat &lmat, cv::Mat &umat)
@@ -1194,10 +1187,10 @@ void blend() {
 			for (l = 0; l < g_levels - 1; l++)
 			{
 				shrink_hps(&PY(i, l), &PY(i, l + 1));
+				hps(&PY(i, l), &PY(i, l + 1));
 				channels_pyramid[i][l][g_numchannels - 1 - c] = get_cvpyramid(&PY(i, l));
 				if (l == g_levels - 2)
 					channels_pyramid[i][l+1][g_numchannels - 1 - c] = get_cvpyramid(&PY(i, l+1));
-				hps(&PY(i, l), &PY(i, l + 1));
 			}
 
 			shrink_time+=timer.read();
@@ -1267,10 +1260,10 @@ void blend() {
 		for (l = 0; l < g_levels - 1; l++)
 		{
 			shrink_hps_opencv(&PY(i, l), &PY(i, l + 1), g_cvmatpyramids[l], g_cvmatpyramids[l + 1]);
+			hps_opencv(&PY(i, l), &PY(i, l + 1), g_cvmatpyramids[l], g_cvmatpyramids[l + 1]);
 			channels_pyramid[i][l][0] = get_cvpyramid(g_cvmatpyramids[l]);
 			if (l == g_levels - 2)
 				channels_pyramid[i][l + 1][0] = get_cvpyramid(g_cvmatpyramids[l+1]);
-			hps_opencv(&PY(i, l), &PY(i, l + 1), g_cvmatpyramids[l], g_cvmatpyramids[l + 1]);
 		}
 
 		for (l = 0; l < g_levels; l++)
