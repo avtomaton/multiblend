@@ -435,6 +435,15 @@ void shrink_opencv(struct_level* upper, struct_level* lower, const cv::Mat &umat
 	lmat = cv::Mat(lh, lw, CV_16SC3);
 	resizedown(umat, lmat, cv::Size(x_extra0, y_extra0));
 
+	for (int y = y_extra0; y <= ylim; ++y)
+	{
+		auto plmat = lmat.ptr<cv::Vec3s>(y);
+		for (int x = 0; x < x_extra0; ++x)
+			plmat[x] = plmat[x_extra0];
+		for (int x = xlim + 1; x < lw; ++x)
+			plmat[x] = plmat[xlim];
+	}
+
 	auto pborder = lmat.ptr<cv::Vec3s>(y_extra0);
 	for (int y = 0; y < y_extra0; ++y)
 	{
