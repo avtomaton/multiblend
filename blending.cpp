@@ -906,26 +906,11 @@ void collapse_opencv(const cv::Mat &lower, cv::Mat &upper)
 
 	printf("collapse_opencv\n");
 	cv::Mat tmp(upper.size(), upper.type());
+	Proftimer proftimer_resize(&mprofiler, "resizeup_collapse");
+
 	resizeup(lower, tmp);
+	proftimer_resize.stop();
 
-	/*if (lower.cols == (upper.cols + 1) >> 1 && lower.rows == (upper.rows + 1) >> 1)
-	{
-		Proftimer proftimer_resize(&mprofiler, "resizeup_collapse");
-		resizeup(lower, tmp);
-		proftimer_resize.stop();
-
-		//cv::resize(lower, tmp, upper.size());
-	}
-	else
-	{
-		int w = (upper.cols + 1) >> 1;
-		int h = (upper.rows + 1) >> 1;
-		cv::Mat roi(lower, cv::Rect(0, 0, w, h));
-		Proftimer proftimer_resize(&mprofiler, "resizeup_collapse");
-		resizeup(roi, tmp);
-		proftimer_resize.stop();
-		//cv::resize(roi, tmp, upper.size());
-	}*/
 	upper += tmp;
 }
 

@@ -806,11 +806,18 @@ void seam(cv::Mat &nums) {
 
 			if (!g_edt) die("not enough memory to create seams");
 
+			Proftimer proftimer_def(&mprofiler, "default_seam");
 			leftupxy();
 			rightdownxy();
-
+			make_seams();
+			_aligned_free(g_edt);
+			proftimer_def.stop();
+			
+			Proftimer proftimer_opencv(&mprofiler, "opencv_seam");
 			cv::Mat dist;
 			set_g_edt_opencv(dist, g_cvseams, g_cvoutmask, g_cvmasks);
+			dist.release();
+			proftimer_opencv.stop();
 
 			/*
 			cv::imwrite("seam_image_opencv.png", g_cvseams * 30);
@@ -829,10 +836,6 @@ void seam(cv::Mat &nums) {
 			cv::Mat newsum(sum, cv::Rect(0,0,g_workwidth, g_workheight));
 			cv::imwrite("sum_masks.png", newsum);
 			*/
-
-			make_seams();
-
-			_aligned_free(g_edt);
 		} else {
 			simple_seam();
 		}

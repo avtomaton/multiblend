@@ -335,6 +335,8 @@ void shrink_mask(float* input, float **output_pointer, int inwidth, int inheight
 }
 
 void extract_top_masks() {
+	Proftimer proftimer(&mprofiler, "extract_top_masks");
+
 	int i;
 	int x,y;
 	int* p=(int*)malloc(g_numimages*sizeof(int));
@@ -441,6 +443,8 @@ void write_mask(cv::Mat &mask, int i, int l)
 }
 
 void shrink_masks() {
+	Proftimer proftimer(&mprofiler, "shrink_masks");
+
 	int i,l;
 	int w,h;
 	int ow,oh;
@@ -464,6 +468,8 @@ void shrink_masks() {
 }
 
 void shrink_masks_opencv() {
+	Proftimer proftimer(&mprofiler, "shrink_masks_opencv");
+
 	printf("shrink_masks_opencv\n");
 
 	int i, l;
@@ -516,6 +522,8 @@ void shrink_masks_opencv() {
 
 void extract_top_masks_opencv()
 {
+	Proftimer proftimer(&mprofiler, "extract_top_masks_opencv");
+
 	printf("extract_top_masks_opencv\n");
 	g_cvmaskpyramids.resize(g_numimages);
 	int cols = g_workwidth;
@@ -590,10 +598,15 @@ void mask_pyramids() {
 	Proftimer proftimer(&mprofiler, "mask_pyramids");
 	output(1,"masks...\n");
 
+	Proftimer proftimer_default(&mprofiler, "default_mask_pyramids");
 	extract_top_masks();
 	extract_top_masks_opencv();
+	proftimer_default.stop();
+
+	Proftimer proftimer_opencv(&mprofiler, "opencv_mask_pyramids");
 	shrink_masks();
 	shrink_masks_opencv();
+	proftimer_opencv.stop();
 
 	/*for (int i = 0; i < g_numimages; ++i)
 	{

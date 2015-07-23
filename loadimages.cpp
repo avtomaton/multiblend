@@ -896,7 +896,6 @@ void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::
 
 	int ybeg, yend;
 	int xbeg, xend;
-	Proftimer proftimer_vert(&mprofiler, "inpaint_opencv_vert");
 
 //vertical
 	xbeg = image->xpos;
