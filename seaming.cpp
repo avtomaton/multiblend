@@ -57,18 +57,27 @@ void seam_png(int mode, const char* filename) {
 	fopen_s(&f, filename, "wb");
 	if (!f) {
 		output(0,"WARNING: couldn't save seam file\n");
+		free(mask);
+		free(masklimit);
+		free(maskcount);
 		return;
 	}
 
 	png_ptr=png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
 	if (!png_ptr) {
 		output(0,"WARNING: PNG create failed\n");
+		free(mask);
+		free(masklimit);
+		free(maskcount);
 		return;
 	}
 
 	info_ptr=png_create_info_struct(png_ptr);
 	if (!info_ptr) {
 		png_destroy_write_struct(&png_ptr,(png_infopp)NULL);
+		free(mask);
+		free(masklimit);
+		free(maskcount);
 		return;
 	}
 
@@ -583,20 +592,21 @@ void leftupxy() {
 	free(maskcount);
 }
 
-void init_seamdist(cv::Mat &dist, cv::Mat &nums, const std::vector<cv::Mat> &masks)
+void init_seamdist(cv::Mat &dist, cv::Mat &nums, cv::Mat &outmask, const std::vector<cv::Mat> &masks)
 {
 	Proftimer proftimer(&mprofiler, "init_seamdist");
 
 	std::vector<const uint8_t*> pmasks(masks.size());
 
-	for (int y = 0; y < dist.rows; ++y)
+	for (int y = 0; y < g_workheight; ++y)
 	{
 		int* pdist = dist.ptr<int>(y);
 		uint8_t* pnums = nums.ptr<uint8_t>(y);
+		uint8_t* poutmask = outmask.ptr<uint8_t>(y);
 		for (int i = 0; i < masks.size(); ++i)
 			pmasks[i] = masks[i].ptr<uint8_t>(y);
 
-		for (int x = 0; x < dist.cols; ++x)
+		for (int x = 0; x < g_workwidth; ++x)
 		{
 			int count = 0;
 			int num = 0;
@@ -606,6 +616,12 @@ void init_seamdist(cv::Mat &dist, cv::Mat &nums, const std::vector<cv::Mat> &mas
 					++count;
 					num = i;
 				}
+
+			if (count == 0)
+				poutmask[x] = 1;
+			else
+				poutmask[x] = 0;
+
 			if (count == 1)
 			{
 				pdist[x] = 0;
@@ -613,65 +629,57 @@ void init_seamdist(cv::Mat &dist, cv::Mat &nums, const std::vector<cv::Mat> &mas
 			}
 			else
 			{
-				pdist[x] = dist.cols + dist.rows;
+				pdist[x] = 4*(g_workwidth + g_workheight);
 				pnums[x] = 0xff;
 			}
 		}
 	}
 }
 
-void set_g_edt_opencv(cv::Mat &dist, cv::Mat &nums, const std::vector<cv::Mat> &masks, float overlap_of_pano_split = 1.1)
+void set_g_edt_opencv(cv::Mat &dist, cv::Mat &nums, cv::Mat &outmask, const std::vector<cv::Mat> &masks)
 {
 	Proftimer proftimer(&mprofiler, "set_g_edt_opencv");
 
+	printf("set_g_edt_opencv\n");
 	Proftimer proftimer_alloc_dist_n_nums(&mprofiler, "alloc_dist_n_nums");
 	dist = cv::Mat(g_workheight, g_workwidth, CV_32S);
 	nums = cv::Mat(g_workheight, g_workwidth, CV_8U);
+	outmask = cv::Mat(g_workheight, g_workwidth, CV_8U);
 	proftimer_alloc_dist_n_nums.stop();
-
-	init_seamdist(dist, nums, masks);
-
-	int N = masks.size();
+	
+	init_seamdist(dist, nums, outmask, masks);
 
 	int ybeg, yend;
 	int xbeg, xend;
-
-	Proftimer proftimer_seaming_vert(&mprofiler, "seaming_vert");
 
 //vertical
 	xbeg = 0;
 	xend = g_workwidth;
 
-	// top to bottom
-	ybeg = 1;
-	yend = g_workheight;
-	for (int i = 0; i < N; ++i)
-		find_distances_cycle_y_vert<uint8_t>(dist, nums, masks[i], 1, ybeg, yend, xbeg, xend, 0, 0, false, true, true);
-
 	// bottom to top
 	ybeg = g_workheight - 1 - 1;
 	yend = -1;
-	for (int i = 0; i < N; ++i)
-		find_distances_cycle_y_vert<uint8_t>(dist, nums, masks[i], -1, ybeg, yend, xbeg, xend, 0, 0, false, true, true);
-	proftimer_seaming_vert.stop();
-	Proftimer proftimer_seaming_horiz(&mprofiler, "seaming_horiz");
+	find_seamdistances_cycle_y_vert<uint8_t>(dist, nums, outmask, masks, -1, ybeg, yend, xbeg, xend, L_STRAIGHT_SEAM, L_DIAG_SEAM);
+
+	// top to bottom
+	//TODO 1:rows --> ypos:ypos+height...
+	ybeg = 1;
+	yend = g_workheight;
+	find_seamdistances_cycle_y_vert<uint8_t>(dist, nums, outmask, masks, 1, ybeg, yend, xbeg, xend, L_STRAIGHT_SEAM, L_DIAG_SEAM);
 
 //horizontal
 	ybeg = 0;
 	yend = g_workheight;
-
-	//left to right
-	xbeg = 1;
-	xend = g_workwidth; // overlap_of_pano_split * g_workwidth;
-	for (int i = 0; i < N; ++i)
-		find_distances_cycle_y_horiz<uint8_t>(dist, nums, masks[i], 1, ybeg, yend, xbeg, xend, true);
-
+	
 	//right to left
 	xbeg = (g_workwidth - 1) - 1; // overlap_of_pano_split * ((g_workwidth - 1) - 1);
 	xend = -1;
-	for (int i = 0; i < N; ++i)
-		find_distances_cycle_y_horiz<uint8_t>(dist, nums, masks[i], -1, ybeg, yend, xbeg, xend, true);
-	proftimer_seaming_horiz.stop();
+	find_seamdistances_cycle_y_horiz<uint8_t>(dist, nums, outmask, masks, -1, ybeg, yend, xbeg, xend, L_STRAIGHT_SEAM);
+
+	//left to right
+	xbeg =  1;
+	xend = g_workwidth; // overlap_of_pano_split * g_workwidth;
+	find_seamdistances_cycle_y_horiz<uint8_t>(dist, nums, outmask, masks, 1, ybeg, yend, xbeg, xend, L_STRAIGHT_SEAM);
 }
 
 void simple_seam() {
@@ -770,7 +778,7 @@ void write_g_edt()
 		{
 			uint32 tmp = g_edt[p];
 			mat_mask.at<uint8_t>(y, x) = (tmp >> 31) * 255;
-			mat_dist.at<uint8_t>(y, x) = ((tmp >> 8) & 0xffff) / 7;
+			mat_dist.at<uint8_t>(y, x) = ((tmp >> 8) & 0xffff) / 10;
 			mat_image.at<uint8_t>(y, x) = (tmp & 0xf) * 30;
 			++p;
 		}
@@ -780,7 +788,9 @@ void write_g_edt()
 	cv::imwrite("seam_image.png", mat_image);
 }
 
-void seam(const std::vector<cv::Mat> &masks) {
+
+void seam(cv::Mat &nums) {
+
 	Proftimer proftimer(&mprofiler, "seam");
 
 	int i;
@@ -799,14 +809,26 @@ void seam(const std::vector<cv::Mat> &masks) {
 			leftupxy();
 			rightdownxy();
 
-			
 			cv::Mat dist;
-			cv::Mat nums;
-			set_g_edt_opencv(dist, nums, masks);
-			//cv::imwrite("seam_dist_opencv.png", dist / 5);
-			//cv::imwrite("seam_image_opencv.png", nums * 30);
-			//write_g_edt();
+			set_g_edt_opencv(dist, g_cvseams, g_cvoutmask, g_cvmasks);
+
+			/*
+			cv::imwrite("seam_image_opencv.png", g_cvseams * 30);
+			cv::Mat tmp;
+			dist /= 10;
+			dist.convertTo(tmp, CV_8U);
+			cv::imwrite("seam_dist_opencv.png", tmp);
+			dist *= 10;
+			write_g_edt();
 			
+
+			cv::Mat sum = g_cvmasks[0].clone();
+			sum /= 10;
+			for (int i = 1; i < g_numimages; ++i)
+				sum += g_cvmasks[i] / 10;
+			cv::Mat newsum(sum, cv::Rect(0,0,g_workwidth, g_workheight));
+			cv::imwrite("sum_masks.png", newsum);
+			*/
 
 			make_seams();
 

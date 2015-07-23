@@ -7,6 +7,8 @@
 #include <cstdint>
 #include <png.h>
 
+#include <opencv2/core/core.hpp>
+
 #if JPEG_LIBRARY
 #include <jpeglib.h>
 #endif
@@ -81,6 +83,7 @@ struct struct_image {
 	struct_indexed binary_mask;
 	struct_level* pyramid;
 	float** masks;
+	
 	bool seampresent;
 	#if TIFF_LIBRARY
 	GeoTIFFInfo geotiff;

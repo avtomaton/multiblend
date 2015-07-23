@@ -861,21 +861,6 @@ void inpaint(struct_image* image, uint32* edt) {
 	if (image->bpp==8) inpaint8(image,edt); else inpaint16(image,edt);
 }
 
-bool is_two_areas(const cv::Mat &mask, struct_image* image)
-{
-	bool two_areas = true;
-	for (int y = image->ypos; y < (image->ypos + image->height); ++y)
-	{
-		int x = image->xpos + image->width / 2;
-		if (mask.at<uint8_t>(y, x))
-		{
-			two_areas = false;
-			break;
-		}
-	}
-	return two_areas;
-}
-
 void init_dist(const cv::Mat &mask, cv::Mat &dist, struct_image* image)
 {
 	Proftimer proftimer_init_dist(&mprofiler, "init_dist");
@@ -893,7 +878,6 @@ void init_dist(const cv::Mat &mask, cv::Mat &dist, struct_image* image)
 		}
 	}
 }
-
 
 void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::Mat &dist)
 {
@@ -922,14 +906,13 @@ void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::
 	ybeg = image->ypos + 1;
 	yend = image->ypos + image->height;
 
-	find_distances_cycle_y_vert<cv::Vec3b>(dist, mat, mask, 1, ybeg, yend, xbeg, xend, xl, xr, two_areas, false, false);
+	find_distances_cycle_y_vert<cv::Vec3b>(dist, mat, mask, 1, ybeg, yend, xbeg, xend, xl, xr, two_areas, false, L_STRAIGHT, L_DIAG);
 
 	// bottom to top
 	ybeg = image->ypos + image->height - 1 - 1;
 	yend = image->ypos - 1;
-	find_distances_cycle_y_vert<cv::Vec3b>(dist, mat, mask, -1, ybeg, yend, xbeg, xend, xl, xr, two_areas, false, false);
-	proftimer_vert.stop();
-	Proftimer proftimer_horiz(&mprofiler, "inpaint_opencv_horiz");
+
+	find_distances_cycle_y_vert<cv::Vec3b>(dist, mat, mask, -1, ybeg, yend, xbeg, xend, xl, xr, two_areas, false, L_STRAIGHT, L_DIAG);
 
 //horizontal
 	ybeg = image->ypos;
@@ -938,13 +921,14 @@ void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::
 	//left to right
 	xbeg = image->xpos + 1;
 	xend = xr;
-	find_distances_cycle_y_horiz<cv::Vec3b>(dist, mat, mask, 1, ybeg, yend, xbeg, xend, false);
+	find_distances_cycle_y_horiz<cv::Vec3b>(dist, mat, mask, 1, ybeg, yend, xbeg, xend, false, L_STRAIGHT);
 
 	//right to left
 	xbeg = (image->xpos + image->width - 1) - 1;
 	xend = xl - 1;
-	find_distances_cycle_y_horiz<cv::Vec3b>(dist, mat, mask, -1, ybeg, yend, xbeg, xend, false);
-	proftimer_horiz.stop();
+
+	find_distances_cycle_y_horiz<cv::Vec3b>(dist, mat, mask, -1, ybeg, yend, xbeg, xend, false, L_STRAIGHT);
+
 }
 
 void tighten() {
@@ -1283,14 +1267,14 @@ void mat2struct(int i, const std::string &filename, cv::Mat &matimage, const cv:
 	free(untrimmed);
 }
 
-void load_images(std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) {
+void load_images() {
 	Proftimer proftimer_load_images(&mprofiler, "load_images");
 
 	char buf[256];
-
 	Proftimer proftimer_alloc_dist(&mprofiler, "alloc_dist");
-	cv::Mat dist(mats[0].size(), CV_32S);
+	cv::Mat dist(g_cvmats[0].size(), CV_32S);
 	proftimer_alloc_dist.stop();
+
 	for (int i = 0; i < g_numimages; ++i) {
 		//cv::Mat matimage = cv::imread(argv[i], CV_LOAD_IMAGE_COLOR);
 		//cv::Mat mask = cv::imread(std::string("mask_") + std::string(argv[i]), CV_LOAD_IMAGE_GRAYSCALE);
@@ -1300,7 +1284,7 @@ void load_images(std::vector<cv::Mat> &mats, const std::vector<cv::Mat> &masks) 
 		#else
 		sprintf(buf, "%d/", i);
 		#endif
-		mat2struct(i, buf, mats[i], masks[i], dist);
+		mat2struct(i, buf, g_cvmats[i], g_cvmasks[i], dist);
 	}
 
 	if (g_crop) tighten();

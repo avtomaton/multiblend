@@ -391,4 +391,8 @@ void opencv_out()
 	}
 	Proftimer proftimer_imwrite(&mprofiler, "imwrite");
 	cv::imwrite("out.tif", outmat);
+	free(maskcount);
+	free(masklimit);
+	free(mask);
+
 }
