@@ -622,32 +622,6 @@ void set_g_edt_opencv(cv::Mat &dist, cv::Mat &nums, const std::vector<cv::Mat> &
 	nums = cv::Mat(g_workheight, g_workwidth, CV_8U);
 	
 	init_seamdist(dist, nums, masks);
-	cv::imwrite("nums_init.png", nums * 30);
-	cv::Mat tmp;
-	dist /= 10;
-	dist.convertTo(tmp, CV_8U);
-	cv::imwrite("dist_init_opencv.png", tmp);
-	dist *= 10;
-
-
-	int N = masks.size();
-
-	std::vector<int> xl(N);
-	std::vector<int> xr(N);
-	std::vector<int> two_areas(N);
-	for (int i = 0; i < N; ++i)
-	{
-		two_areas[i] = 0;
-		xl[i] = g_images[i].xpos;
-		xr[i] = g_images[i].xpos + g_images[i].width;
-		/*two_areas[i] = is_two_areas(masks[i], &g_images[i]) ? 1 : 0;
-		if (two_areas[i])
-		{
-			xl[i] = search_l(masks[i], g_images[i].xpos + g_images[i].width / 2, g_images[i].xpos + g_images[i].width, false);
-			xr[i] = search_r(masks[i], g_images[i].xpos, g_images[i].xpos + g_images[i].width / 2, false) + 1;
-			//printf("xl = %d, xr = %d\n", xl, xr);
-		}*/
-	}
 
 	int ybeg, yend;
 	int xbeg, xend;
@@ -802,23 +776,26 @@ void seam(cv::Mat &nums) {
 			leftupxy();
 			rightdownxy();
 
-			
 			cv::Mat dist;
 			set_g_edt_opencv(dist, g_cvseams, g_cvmasks);
-			cv::imwrite("seam_image_opencv.png", g_cvseams * 30);
+
+			/*cv::imwrite("seam_image_opencv.png", g_cvseams * 30);
 			cv::Mat tmp;
 			dist /= 10;
 			dist.convertTo(tmp, CV_8U);
 			cv::imwrite("seam_dist_opencv.png", tmp);
 			dist *= 10;
 			write_g_edt();
+			*/
 
-			cv::Mat sum = g_cvmasks[0].clone();
+			/*cv::Mat sum = g_cvmasks[0].clone();
 			sum /= 10;
 			for (int i = 1; i < g_numimages; ++i)
 				sum += g_cvmasks[i] / 10;
 			cv::Mat newsum(sum, cv::Rect(0,0,g_workwidth, g_workheight));
 			cv::imwrite("sum_masks.png", newsum);
+			*/
+
 			make_seams();
 
 			_aligned_free(g_edt);
