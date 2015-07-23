@@ -360,20 +360,19 @@ void shrink_hps(struct_level* upper, struct_level* lower) {
 void resizedown(const cv::Mat &umat, cv::Mat &lmat)
 {
 	lmat = cv::Mat((umat.rows + 1) >> 1, (umat.cols + 1) >> 1, CV_16SC3);
-	printf("resizedown: %d,%d --> %d,%d\n", umat.cols, umat.rows, lmat.cols, lmat.rows);
 
 	cv::Mat tmp(umat.rows, lmat.cols, CV_32SC3);
 	cv::Vec3i eights(8);
-	for (int y = 0; y < tmp.rows; ++y)
+	for (int y = 0; y < umat.rows; ++y)
 	{
-		cv::Vec3i *ptmp = tmp.ptr<cv::Vec3i>(y);
-		const cv::Vec3s *pumat = umat.ptr<cv::Vec3s>(y);
-		for (int x = 1; x < tmp.cols - 1; ++x)
+		auto ptmp = tmp.ptr<cv::Vec3i>(y);
+		auto pumat = umat.ptr<cv::Vec3s>(y);
+		for (int x = 1; x < lmat.cols - 1; ++x)
 		{
 			ptmp[x] = pumat[2 * x - 1] + 2 * pumat[2 * x] + pumat[2 * x + 1];
 		}
 		ptmp[0] = 3 * pumat[0] + pumat[1];
-		ptmp[tmp.cols - 1] = 3 * pumat[2 * (tmp.cols - 1)] + pumat[2 * (tmp.cols - 1) - 1];
+		ptmp[lmat.cols - 1] = 3 * pumat[2 * (lmat.cols - 1)] + pumat[2 * (lmat.cols - 1) - 1];
 	}
 
 	for (int x = 0; x < lmat.cols; ++x)
@@ -390,14 +389,13 @@ void resizedown(const cv::Mat &umat, cv::Mat &lmat)
 void resizeup(const cv::Mat &lmat, cv::Mat &umat)
 {
 	umat = cv::Mat((lmat.rows << 1) - 1, (lmat.cols << 1) - 1, lmat.type());
-	printf("resizeup: %d,%d --> %d,%d\n", lmat.cols, lmat.rows, umat.cols, umat.rows);
 	
 	cv::Mat tmp(lmat.rows, umat.cols, lmat.type());
 	cv::Vec3s ones(1);
-	for (int y = 0; y < tmp.rows; ++y)
+	for (int y = 0; y < lmat.rows; ++y)
 	{
-		cv::Vec3s *ptmp = tmp.ptr<cv::Vec3s>(y);
-		const cv::Vec3s *plmat = lmat.ptr<cv::Vec3s>(y);
+		auto ptmp = tmp.ptr<cv::Vec3s>(y);
+		auto plmat = lmat.ptr<cv::Vec3s>(y);
 		
 		for (int x = 0; x < lmat.cols - 1; ++x)
 		{
@@ -444,28 +442,28 @@ void shrink_opencv(struct_level* upper, struct_level* lower, const cv::Mat &umat
 	}
 	for (int y = y_extra0; y <= ylim; ++y)
 	{
-		const cv::Vec3s *pmat = tmp.ptr<cv::Vec3s>(y - y_extra0);
-		cv::Vec3s *plevel = lmat.ptr<cv::Vec3s>(y);
+		auto pmat = tmp.ptr<cv::Vec3s>(y - y_extra0);
+		auto plevel = lmat.ptr<cv::Vec3s>(y);
 
 		for (int x = x_extra0; x <= xlim; ++x)
 			plevel[x] = pmat[x - x_extra0];
 
 		for (int x = 0; x < x_extra0; ++x)
 			plevel[x] = plevel[x_extra0];
-		for (int x = xlim + 1; x < lw; x++)
+		for (int x = xlim + 1; x < lw; ++x)
 			plevel[x] = plevel[xlim];
 	}
-	cv::Vec3s *pborder = lmat.ptr<cv::Vec3s>(y_extra0);
+	auto pborder = lmat.ptr<cv::Vec3s>(y_extra0);
 	for (int y = 0; y < y_extra0; ++y)
 	{
-		cv::Vec3s *plevel = lmat.ptr<cv::Vec3s>(y);
+		auto plevel = lmat.ptr<cv::Vec3s>(y);
 		for (int x = 0; x < lw; ++x)
 			plevel[x] = pborder[x];
 	}
 	pborder = lmat.ptr<cv::Vec3s>(ylim);
 	for (int y = ylim + 1; y < lh; ++y)
 	{
-		cv::Vec3s *plevel = lmat.ptr<cv::Vec3s>(y);
+		auto plevel = lmat.ptr<cv::Vec3s>(y);
 		for (int x = 0; x < lw; ++x)
 			plevel[x] = pborder[x];
 	}
@@ -617,14 +615,11 @@ void copy_channel_opencv(int i)
 	int lw = level->w;
 	int lh = level->h;
 	g_cvmatpyramids[0] = cv::Mat(lh, lw, CV_16SC3);
-	printf("create g_cvmatpyramids[0]: %d x %d\n", g_cvmatpyramids[0].cols, g_cvmatpyramids[0].rows);
 	int x_extra0 = g_images[i].xpos - level->x0;
 	int y_extra0 = g_images[i].ypos - level->y0;
 	int y_extra1 = level->y1 - (g_images[i].ypos + g_images[i].height - 1);
 	int xlim = g_images[i].width + x_extra0;
 	int ylim = g_images[i].height + y_extra0;
-	printf("toplevel[%d]: x0 = %d, x1 = %d, y0 = %d, y1 = %d\n", i, level->x0, level->x1, level->y0, level->y1);
-	printf("g_images[%d]: %d x %d\n", i, g_images[i].width, g_images[i].height);
 
 	for (int y = y_extra0; y < ylim; ++y)
 	{
@@ -801,7 +796,6 @@ void mask_into_output_opencv(int i, int l, bool first)
 	if (d > g_cvmaskpyramids[i][l].cols)
 		xlim = g_cvmaskpyramids[i][l].cols - PY(i, l).x0;
 
-	printf("x_extra0 = %d, y_extra0 = %d, xlim = %d\n", x_extra0, y_extra0, xlim);
 	for (int y = y_extra0; y < ylim; ++y)
 	{
 		const cv::Vec3s *pmat = g_cvmatpyramids[l].ptr<cv::Vec3s>(y);
@@ -974,6 +968,7 @@ void dither(struct_level* top, void* channel) {
 
 void dither_opencv(cv::Mat &top, cv::Mat &out)
 {
+	printf("dither_opencv\n");
 	int dith_off = 0;
 	std::vector<int> dither_array(1024);
 	if (RAND_MAX == 32767) // 2 bytes
@@ -1011,26 +1006,57 @@ void dither_opencv(cv::Mat &top, cv::Mat &out)
 
 cv::Mat get_cvpyramid(const cv::Mat &mat)
 {
-	cv::Mat tmpout, tmpout2;
-	tmpout = mat.clone();
-	tmpout /= 1 << ACCURACY;
-	tmpout.convertTo(tmpout2, CV_8UC3);
-	return tmpout2;
+	cv::Mat out(mat.size(), CV_8UC3);
+	for (int y = 0; y < out.rows; ++y)
+	{
+		auto pout = out.ptr<cv::Vec3b>(y);
+		auto pmat = mat.ptr<cv::Vec3s>(y);
+
+		for (int x = 0; x < out.cols; ++x)
+		{
+			cv::Vec3s tmp = pmat[x];
+			tmp[0] >>= ACCURACY;
+			tmp[1] >>= ACCURACY;
+			tmp[2] >>= ACCURACY;
+			pout[x] = tmp;
+		}
+	}
+
+	return out;
 }
 
 cv::Mat get_cvpyramid(struct_level* level)
 {
-	 cv::Mat out(level->h, level->pitch, CV_8U);
-	 short* ptr = (short*)level->data;
+	cv::Mat out(level->h, level->pitch, CV_8U);
+	short* ptr = (short*)level->data;
 	for (int y = 0; y < out.rows; ++y)
 	{
-		uint8_t *pmat = out.ptr<uint8_t>(y);
+		auto pout = out.ptr<uint8_t>(y);
 		for (int x = 0; x < out.cols; ++x, ++ptr)
 		{
-			pmat[x] = (*ptr) >> ACCURACY;
+			pout[x] = (*ptr) >> ACCURACY;
 		}
 	}
 	return out;
+}
+
+void apply_mask(cv::Mat &out, cv::Mat &outmask)
+{
+	printf("apply_mask\n");
+	for (int y = 0; y < out.rows; ++y)
+	{
+		auto pout = out.ptr<cv::Vec3b>(y);
+		auto poutmask = outmask.ptr<uint8_t>(y);
+		for (int x = 0; x < out.cols; ++x)
+		{
+			if (poutmask[x])
+			{
+				pout[x][0] = 0xff;
+				pout[x][1] = 0xff;
+				pout[x][2] = 0xff;
+			}
+		}
+	}
 }
 
 void blend() {
@@ -1224,7 +1250,7 @@ void blend() {
 		dither_time+=timer.read();
 	}
 
-
+	/*
 	for (i = 0; i < g_numimages; i++)
 	{
 		for (l = 0; l < g_levels; l++)
@@ -1250,7 +1276,10 @@ void blend() {
 		cv::merge(channels_outpyramid[l], m);
 		cv::imwrite(outstring, m);
 	}
+	*/
+
 	///////////////////////////////////////////////////////////////////////////////////////////
+	
 	g_cvmatpyramids.resize(g_levels);
 	g_cvoutput_pyramid.resize(g_levels);
 
@@ -1272,7 +1301,8 @@ void blend() {
 			channels_outpyramid[l][0] = get_cvpyramid(g_cvoutput_pyramid[l]);
 		}
 	}
-	printf("print pyramid_opencv\n");
+
+	/*printf("print pyramid_opencv\n");
 	for (i = 0; i < g_numimages; i++)
 	{
 		for (l = 0; l < g_levels; l++)
@@ -1288,7 +1318,6 @@ void blend() {
 		}
 	}
 	printf("print outpyramid_opencv\n");
-
 	for (l = 0; l < g_levels; l++)
 	{
 		cv::Mat m;
@@ -1297,12 +1326,13 @@ void blend() {
 		outstring += std::to_string(l);
 		outstring += "_opencv.png";
 		cv::imwrite(outstring, channels_outpyramid[l][0]);
-	}
+	}*/
 
 	for (l = g_levels - 1; l > 0; l--)
 		collapse_opencv(g_cvoutput_pyramid[l], g_cvoutput_pyramid[l - 1]);
 	
-	cv::Mat tmpout, tmpout2;
+	cv::Mat tmpout;
+	/*cv::Mat tmpout2;
 	tmpout = g_cvoutput_pyramid[0].clone();
 	tmpout /= 1 << ACCURACY;
 	tmpout.convertTo(tmpout2, CV_8U);
@@ -1311,13 +1341,15 @@ void blend() {
 	outstring += std::to_string(0);
 	outstring += ".png";
 	cv::imwrite(outstring, tmpout2);
+	*/
 	
-
-	dither_opencv(g_cvoutput_pyramid[0], g_cvout);
+	dither_opencv(g_cvoutput_pyramid[0], tmpout);
+	cv::Mat outroi(tmpout, cv::Rect(0, 0, g_workwidth, g_workheight));
+	g_cvout = outroi;
+	apply_mask(g_cvout, g_cvoutmask);
 	cv::imwrite("output_opencv.png", g_cvout);
 	
 	///////////////////////////////////////////////////////////////////////////////////////////
-
 
 	if (g_timing) {
 		printf("\n");

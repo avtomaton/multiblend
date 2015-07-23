@@ -68,6 +68,7 @@ uint32* g_edt = NULL;
 struct_image* g_images = NULL;
 
 cv::Mat g_cvseams;
+cv::Mat g_cvoutmask;
 std::vector<std::vector<cv::Mat> > g_cvmaskpyramids;
 std::vector<cv::Mat> g_cvmatpyramids;
 std::vector<cv::Mat> g_cvmats;
