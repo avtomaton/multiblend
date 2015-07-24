@@ -7,6 +7,7 @@
 #include "structs.h"
 
 #include <opencv2/core/core.hpp>
+#include <opencv2/cudaarithm.hpp>
 
 #define L_STRAIGHT 2
 #define L_DIAG 3
@@ -29,7 +30,11 @@ void fopen_s(FILE** f, const char* filename, const char* mode);
 void clean_globals();
 void clear_temp();
 void die(const char* error, ...);
+#ifdef NO_CUDA
 bool is_two_areas(const cv::Mat &mask, struct_image* image);
+#else
+bool is_two_areas(const cv::cuda::GpuMat &mask, struct_image* image);
+#endif
 
 //geotiff
 /*void geotiff_register(TIFF* tif);
@@ -61,6 +66,12 @@ void to_cvmat(cv::Mat &mat, struct_image* image);
 void inpaint8(struct_image* image, uint32* edt);
 void inpaint16(struct_image* image, uint32* edt);
 void inpaint(struct_image* image, uint32* edt);
+void tighten();
+int localize_xl(const cv::Mat &mask, float j0, float jstep, float left, float right);
+int localize_xr(const cv::Mat &mask, float j0, float jstep, float left, float right);
+int localize_yl(const cv::Mat &mask, float i0, float istep, float left, float right);
+int localize_yr(const cv::Mat &mask, float i0, float istep, float left, float right);
+#ifdef NO_CUDA
 void init_dist(const cv::Mat &mask, cv::Mat &dist, struct_image* image);
 void find_distances_cycle_y_horiz(
 	cv::Mat &dist, cv::Mat &mat, const cv::Mat &mask,
@@ -75,16 +86,32 @@ void find_distances_cycle_y_vert(
 	int shift, int ybeg, int yend, int xbeg, int xend, int xl, int xr,
 	bool two_areas,
 	int l_straight, int l_diag);
-void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::Mat &dist);
-void tighten();
-int localize_xl(const cv::Mat &mask, float j0, float jstep, float left, float right);
-int localize_xr(const cv::Mat &mask, float j0, float jstep, float left, float right);
-int localize_yl(const cv::Mat &mask, float i0, float istep, float left, float right);
-int localize_yr(const cv::Mat &mask, float i0, float istep, float left, float right);
 int search_l(const cv::Mat &mask, float left, float right, bool isy);
 int search_r(const cv::Mat &mask, float left, float right, bool isy);
 cv::Rect get_visible_rect(const cv::Mat &mask);
+void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::Mat &dist);
 void mat2struct(int i, const std::string &filename, cv::Mat &matimage, const cv::Mat &mask, cv::Mat &dist);
+#else
+void init_dist(const cv::cuda::GpuMat &mask, cv::cuda::GpuMat &dist, struct_image* image);
+void find_distances_cycle_y_horiz(
+	cv::cuda::GpuMat &dist, cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask,
+	int shift, int ybeg, int yend, int xbeg, int xend,
+	int l_straight);
+inline void find_distances_cycle_x(
+	const uint8_t *pmask, int *pdist, int *pdist_prev, cv::Vec3b *pnums, cv::Vec3b *pnums_prev,
+	int tmp_xbeg, int tmp_xend,
+	int l_straight, int l_diag);
+void find_distances_cycle_y_vert(
+	cv::cuda::GpuMat &dist, cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask,
+	int shift, int ybeg, int yend, int xbeg, int xend, int xl, int xr,
+	bool two_areas,
+	int l_straight, int l_diag);
+int search_l(const cv::cuda::GpuMat &mask, float left, float right, bool isy);
+int search_r(const cv::cuda::GpuMat &mask, float left, float right, bool isy);
+cv::Rect get_visible_rect(const cv::cuda::GpuMat &mask);
+void inpaint_opencv(cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask, struct_image* image, cv::cuda::GpuMat &dist);
+void mat2struct(int i, const std::string &filename, cv::cuda::GpuMat &matimage, const cv::cuda::GpuMat &mask, cv::cuda::GpuMat &dist);
+#endif
 void load_images();
 
 //seaming
@@ -94,6 +121,7 @@ void rightdownxy();
 void leftupxy();
 void simple_seam();
 void make_seams();
+#ifdef NO_CUDA
 void find_seamdistances_cycle_y_horiz(
 	cv::Mat &dist, cv::Mat &mat, const cv::Mat &outmask, const std::vector<cv::Mat> &masks,
 	int shift, int ybeg, int yend, int xbeg, int xend,
@@ -108,6 +136,22 @@ void find_seamdistances_cycle_y_vert(
 	int l_straight, int l_diag);
 void init_seamdist(cv::Mat &dist, cv::Mat &nums, cv::Mat &outmask, const std::vector<cv::Mat> &masks);
 void set_g_edt_opencv(cv::Mat &dist, cv::Mat &nums, cv::Mat &outmask, const std::vector<cv::Mat> &masks);
+#else
+void find_seamdistances_cycle_y_horiz(
+	cv::cuda::GpuMat &dist, cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &outmask, const std::vector<cv::cuda::GpuMat> &masks,
+	int shift, int ybeg, int yend, int xbeg, int xend,
+	int l_straight);
+void find_seamdistances_cycle_x(
+	const std::vector<const uint8_t*> &pmasks, const uint8_t *poutmask, int *pdist, int *pdist_prev, uint8_t *pnums, uint8_t *pnums_prev,
+	int tmp_xbeg, int tmp_xend,
+	int l_straight, int l_diag);
+void find_seamdistances_cycle_y_vert(
+	cv::cuda::GpuMat &dist, cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &outmask, const std::vector<cv::cuda::GpuMat> &masks,
+	int shift, int ybeg, int yend, int xbeg, int xend,
+	int l_straight, int l_diag);
+void init_seamdist(cv::cuda::GpuMat &dist, cv::cuda::GpuMat &nums, cv::cuda::GpuMat &outmask, const std::vector<cv::cuda::GpuMat> &masks);
+void set_g_edt_opencv(cv::cuda::GpuMat &dist, cv::cuda::GpuMat &nums, cv::cuda::GpuMat &outmask, const std::vector<cv::cuda::GpuMat> &masks);
+#endif
 void seam();
 
 //maskpyramids

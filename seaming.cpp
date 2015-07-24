@@ -581,6 +581,7 @@ void leftupxy() {
 	free(maskcount);
 }
 
+#ifdef NO_CUDA
 void find_seamdistances_cycle_y_horiz(
 	cv::Mat &dist, cv::Mat &mat, const cv::Mat &outmask, const std::vector<cv::Mat> &masks,
 	int shift, int ybeg, int yend, int xbeg, int xend,
@@ -683,7 +684,38 @@ void find_seamdistances_cycle_y_vert(
 		y += shift;
 	}
 }
+#else
+void find_seamdistances_cycle_y_horiz(
+	cv::cuda::GpuMat &dist, cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &outmask, const std::vector<cv::cuda::GpuMat> &masks,
+	int shift, int ybeg, int yend, int xbeg, int xend,
+	int l_straight)
+{
+	printf("find_seamdistances_cycle_y_horiz\n");
+	exit(1);
+}
 
+void find_seamdistances_cycle_x(
+	const std::vector<const uint8_t*> &pmasks, const uint8_t *poutmask, int *pdist, int *pdist_prev, uint8_t *pnums, uint8_t *pnums_prev,
+	int tmp_xbeg, int tmp_xend,
+	int l_straight, int l_diag)
+{
+	printf("find_seamdistances_cycle_x\n");
+	exit(1);
+}
+
+void find_seamdistances_cycle_y_vert(
+	cv::cuda::GpuMat &dist, cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &outmask, const std::vector<cv::cuda::GpuMat> &masks,
+	int shift, int ybeg, int yend, int xbeg, int xend,
+	int l_straight, int l_diag)
+{
+	printf("find_seamdistances_cycle_y_vert\n");
+	exit(1);
+}
+
+#endif
+
+
+#ifdef NO_CUDA
 void init_seamdist(cv::Mat &dist, cv::Mat &nums, cv::Mat &outmask, const std::vector<cv::Mat> &masks)
 {
 	std::vector<const uint8_t*> pmasks(masks.size());
@@ -725,14 +757,31 @@ void init_seamdist(cv::Mat &dist, cv::Mat &nums, cv::Mat &outmask, const std::ve
 		}
 	}
 }
+#else
+void init_seamdist(cv::cuda::GpuMat &dist, cv::cuda::GpuMat &nums, cv::cuda::GpuMat &outmask, const std::vector<cv::cuda::GpuMat> &masks)
+{
+	printf("init_seamdist(cuda)\n");
+	exit(1);
+}
+#endif
 
+#ifdef NO_CUDA
 void set_g_edt_opencv(cv::Mat &dist, cv::Mat &nums, cv::Mat &outmask, const std::vector<cv::Mat> &masks)
+#else
+void set_g_edt_opencv(cv::cuda::GpuMat &dist, cv::cuda::GpuMat &nums, cv::cuda::GpuMat &outmask, const std::vector<cv::cuda::GpuMat> &masks)
+#endif
 {
 	printf("set_g_edt_opencv\n");
-	dist = cv::Mat(g_workheight, g_workwidth, CV_32S);
-	nums = cv::Mat(g_workheight, g_workwidth, CV_8U);
-	outmask = cv::Mat(g_workheight, g_workwidth, CV_8U);
-	
+	#ifdef NO_CUDA
+		dist = cv::Mat(g_workheight, g_workwidth, CV_32S);
+		nums = cv::Mat(g_workheight, g_workwidth, CV_8U);
+		outmask = cv::Mat(g_workheight, g_workwidth, CV_8U);
+	#else
+		dist = cv::cuda::GpuMat(g_workheight, g_workwidth, CV_32S);
+		nums = cv::cuda::GpuMat(g_workheight, g_workwidth, CV_8U);
+		outmask = cv::cuda::GpuMat(g_workheight, g_workwidth, CV_8U);
+	#endif
+
 	init_seamdist(dist, nums, outmask, masks);
 
 	int ybeg, yend;
@@ -909,7 +958,11 @@ void seam() {
 		#else
 		if (g_cvmaskpyramids.empty() || g_cvoutmask.empty())
 		{
+			#ifdef NO_CUDA
 			cv::Mat dist;
+			#else
+			cv::cuda::GpuMat dist;
+			#endif
 			set_g_edt_opencv(dist, g_cvseams, g_cvoutmask, g_cvmasks);
 		}
 		#endif

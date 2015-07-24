@@ -67,6 +67,7 @@ uint32* g_edt = NULL;
 
 struct_image* g_images = NULL;
 
+#ifdef NO_CUDA
 cv::Mat g_cvseams;
 cv::Mat g_cvoutmask;
 std::vector<std::vector<cv::Mat> > g_cvmaskpyramids;
@@ -74,4 +75,13 @@ std::vector<cv::Mat> g_cvmatpyramids;
 std::vector<cv::Mat> g_cvmats;
 std::vector<cv::Mat> g_cvmasks;
 std::vector<cv::Mat> g_cvoutput_pyramid;
+#else
+cv::cuda::GpuMat g_cvseams;
+cv::cuda::GpuMat g_cvoutmask;
+std::vector<std::vector<cv::cuda::GpuMat> > g_cvmaskpyramids;
+std::vector<cv::cuda::GpuMat> g_cvmatpyramids;
+std::vector<cv::cuda::GpuMat> g_cvmats;
+std::vector<cv::cuda::GpuMat> g_cvmasks;
+std::vector<cv::cuda::GpuMat> g_cvoutput_pyramid;
+#endif
 cv::Mat g_cvout;
