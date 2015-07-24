@@ -72,9 +72,11 @@ void parse(std::vector<std::string> &output, const std::string &input)
 		output.push_back(temp);
 }
 
-int multiblend(const std::string &inputstring, std::vector<cv::Mat> &mats, std::vector<cv::Mat> &masks) {
+int multiblend(const std::string &inputstring, std::vector<cv::Mat> &mats, std::vector<cv::Mat> &masks, std::vector<std::vector<cv::Mat> > &cvmaskpyramids, cv::Mat &cvoutmask) {
 	g_cvmats = mats;
 	g_cvmasks = masks;
+	g_cvmaskpyramids = cvmaskpyramids;
+	g_cvoutmask = cvoutmask;
 
 	#if TIFF_LIBRARY
 	TIFFSetWarningHandler(NULL);
@@ -192,17 +194,23 @@ int multiblend(const std::string &inputstring, std::vector<cv::Mat> &mats, std::
 		getchar();
 	}
 	delete[] argv;
+
+	cvmaskpyramids = g_cvmaskpyramids;
+	cvoutmask = g_cvoutmask;
+
 	return 0;
 }
 #ifdef IS_APPLICATION
 int main()
 {
-	int K = 1;
+	std::vector<std::vector<cv::Mat> > cvmaskpyramids;
+	cv::Mat cvoutmask;
+
+	int K = 2;
 	std::vector<std::string> base_name(K);
 	base_name[0] = "000000001";
-	/*
 	base_name[1] = "000000021";
-	base_name[2] = "000000031";
+	/*base_name[2] = "000000031";
 	base_name[3] = "000000041";
 	base_name[4] = "000000051";
 	base_name[5] = "000000061";
@@ -221,7 +229,7 @@ int main()
 			mats.push_back(cv::imread(base_name[k] + std::string(buf), CV_LOAD_IMAGE_COLOR));
 			masks.push_back(cv::imread(std::string("mask_") + base_name[k] + std::string(buf), CV_LOAD_IMAGE_GRAYSCALE));
 		}
-		multiblend(inputstring, mats, masks);
+		multiblend(inputstring, mats, masks, cvmaskpyramids, cvoutmask);
 	}
 
 	return 0;

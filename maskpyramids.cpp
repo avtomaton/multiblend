@@ -593,8 +593,11 @@ void mask_pyramids() {
 		extract_top_masks();
 		shrink_masks();
 	#else
+	if (g_cvmaskpyramids.empty())
+	{
 		extract_top_masks_opencv();
 		shrink_masks_opencv();
+	}
 	#endif
 
 	/*for (int i = 0; i < g_numimages; ++i)

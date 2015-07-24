@@ -907,8 +907,11 @@ void seam() {
 			}
 			if (g_seamsave_filename) seam_png(1,g_seamsave_filename);
 		#else
+		if (g_cvmaskpyramids.empty() || g_cvoutmask.empty())
+		{
 			cv::Mat dist;
 			set_g_edt_opencv(dist, g_cvseams, g_cvoutmask, g_cvmasks);
+		}
 		#endif
 
 		for (i=0; i<g_numimages; i++) {
