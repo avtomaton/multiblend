@@ -1000,7 +1000,7 @@ void dither_opencv(cv::Mat &top, cv::Mat &out)
 		{
 			for (int c = 0; c < 3; ++c)
 			{
-				int q = (ptop[x][c] + g_dither[dith_off + (x & 31)]) >> ACCURACY;
+				int q = (ptop[x][c] + dither_array[dith_off + (x & 31)]) >> ACCURACY;
 				pout[x][c] = std::max(0, std::min(q, 255));
 			}
 		}
@@ -1070,14 +1070,11 @@ void blend() {
 	int l;
 	int c;
 	int temp;
-	size_t mem_out;
-	size_t mem_image;
+	
 	size_t mem_image_max=0;
 	size_t mem_temp=0;
 	size_t mem_temp_max=0;
-	size_t msize;
-	void* out_pyramid;
-	void* image_pyramid;
+	
 	my_timer timer;
 	int pitch_plus;
 	int size_of;
@@ -1090,11 +1087,11 @@ void blend() {
 		pitch_plus=3;
 
 // dimension pyramid structs
-	msize=g_levels*sizeof(struct_level);
+	size_t msize = g_levels*sizeof(struct_level);
 	g_output_pyramid=(struct_level*)malloc(msize);
 
 	for (i=0; i<g_numimages; i++) {
-		mem_image=0;
+		size_t mem_image = 0;
 		g_images[i].pyramid=(struct_level*)malloc(msize);
 
 		for (l=0; l<g_levels; l++) {
@@ -1131,7 +1128,7 @@ void blend() {
 		if (mem_image>mem_image_max) mem_image_max=mem_image;
 	}
 
-	mem_out=0;
+	size_t mem_out = 0;
 	for (l=0; l<g_levels; l++) {
 		g_output_pyramid[l].offset=mem_out;
 
@@ -1150,6 +1147,7 @@ void blend() {
 		g_output_pyramid[l].x1=g_output_pyramid[l].w-1;
 		g_output_pyramid[l].y1=g_output_pyramid[l].h-1;
 		g_output_pyramid[l].pitch=(g_output_pyramid[l].w+pitch_plus)&~pitch_plus;
+		
 		mem_out+=g_output_pyramid[l].pitch*g_output_pyramid[l].h;
 	}
 
@@ -1158,19 +1156,16 @@ void blend() {
 	else 
 		size_of=sizeof(int);
 
-	image_pyramid=_aligned_malloc(mem_image_max*size_of,16);
+#ifdef NO_OPENCV
+	void* image_pyramid=_aligned_malloc(mem_image_max*size_of,16);
 	if (!image_pyramid) die("Couldn't allocate memory for image pyramid!");
-
-	out_pyramid=_aligned_malloc(mem_out*size_of,16);
+	void* out_pyramid=_aligned_malloc(mem_out*size_of,16);
 	if (!out_pyramid) die("Couldn't allocate memory for output pyramid!");
-
 	mem_temp_max=std::max(mem_temp_max*sizeof(int),g_cache_bytes);
-
 	if (mem_temp_max>0) {
 		g_temp=_aligned_malloc(mem_temp_max,16); // was *sizeof(int)
 		if (!g_temp) die("Couldn't allocate enough temporary memory!");
 	}
-
 	for (i=0; i<g_numimages; i++) {
 		for (l=0; l<g_levels; l++) {
 			if (g_workbpp==8)
@@ -1186,7 +1181,6 @@ void blend() {
 		else
 			g_output_pyramid[l].data=&((int*)out_pyramid)[g_output_pyramid[l].offset];
 	}
-
 	g_dither=(int*)_aligned_malloc(1024<<2,16);
 
 // iterate over channels/images, create pyramids, copy/add to output
@@ -1209,8 +1203,6 @@ void blend() {
 	for (l = 0; l < g_levels; l++)
 		channels_outpyramid[l].resize(g_numchannels);
 	*/
-
-	Proftimer proftimer_default_version(&mprofiler, "default_version");
 
 	for (c=0; c<g_numchannels; c++) {
 		for (i=0; i<g_numimages; i++) {
@@ -1286,10 +1278,22 @@ void blend() {
 		cv::imwrite(outstring, m);
 	}
 	*/
-	proftimer_default_version.stop();
 
+	if (g_timing) {
+		printf("\n");
+		report_time("copy", copy_time);
+		report_time("shrink", shrink_time);
+		report_time("merge", mio_time);
+		report_time("collapse", collapse_time);
+		report_time("dither", dither_time);
+		printf("\n");
+	}
+
+	_aligned_free(g_dither);
+	_aligned_free(out_pyramid);
+
+#else
 	///////////////////////////////////////////////////////////////////////////////////////////
-	Proftimer proftimer_opencv_version(&mprofiler, "opencv_version");
 
 	g_cvmatpyramids.resize(g_levels);
 	g_cvoutput_pyramid.resize(g_levels);
@@ -1356,30 +1360,13 @@ void blend() {
 	
 	dither_opencv(g_cvoutput_pyramid[0], tmpout);
 
-	proftimer_opencv_version.stop();
-
 	cv::Mat outroi(tmpout, cv::Rect(0, 0, g_workwidth, g_workheight));
 	g_cvout = outroi;
-	apply_mask(g_cvout, g_cvoutmask);
+#endif
 
-	Proftimer proftimer_write(&mprofiler, "write_opencv");
-	cv::imwrite("output_opencv.png", g_cvout);
-	proftimer_write.stop();
 	///////////////////////////////////////////////////////////////////////////////////////////
 
-	if (g_timing) {
-		printf("\n");
-		report_time("copy",copy_time);
-		report_time("shrink",shrink_time);
-		report_time("merge",mio_time);
-		report_time("collapse",collapse_time);
-		report_time("dither",dither_time);
-		printf("\n");
-	}
-	
-	_aligned_free(g_dither);
-	_aligned_free(out_pyramid);
+	free(g_output_pyramid);
 	for (i=0; i<g_numimages; i++) 
 		free(g_images[i].pyramid);
-	free(g_output_pyramid);
 }

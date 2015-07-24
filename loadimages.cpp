@@ -884,6 +884,8 @@ void find_distances_cycle_y_horiz(
 	int shift, int ybeg, int yend, int xbeg, int xend,
 	int l_straight)
 {
+	Proftimer proftimer(&mprofiler, "find_distances_cycle_y_horiz");
+
 	const uint8_t* pmask = NULL;
 	int* pdist = NULL;
 	cv::Vec3b* pmat = NULL;
@@ -916,6 +918,8 @@ inline void find_distances_cycle_x(
 	int tmp_xbeg, int tmp_xend,
 	int l_straight, int l_diag)
 {
+	Proftimer proftimer(&mprofiler, "find_distances_cycle_x");
+
 	for (int x = tmp_xbeg; x < tmp_xend; ++x)
 	{
 		if (pmask[x] || pdist[x] == 0)
@@ -955,6 +959,8 @@ void find_distances_cycle_y_vert(
 	bool two_areas,
 	int l_straight, int l_diag)
 {
+	Proftimer proftimer(&mprofiler, "find_distances_cycle_y_vert");
+
 	const uint8_t *pmask = NULL;
 	int *pdist = NULL;
 	cv::Vec3b *pmat = NULL;
@@ -1354,22 +1360,20 @@ void mat2struct(int i, const std::string &filename, cv::Mat &matimage, const cv:
 
 	g_workwidth = std::max(g_workwidth, (int)(I.xpos + I.width));
 	g_workheight = std::max(g_workheight, (int)(I.ypos + I.height));
-
-	void* untrimmed = (void*)malloc(I.width * I.height * sizeof(uint32));
-	if (!untrimmed) die("not enough memory to process images");
-
+	
 	inpaint_opencv(matimage, mask, &I, dist);
-	extract_opencv(mask, matimage, &I, untrimmed);
-	//inpaint(&I, (uint32*)untrimmed);
-	
-	
-	//cv::Mat inp_mat = matimage.clone();
-	//to_cvmat(inp_mat, &I);
-	//std::string out_inpaint = std::string("J:\\git\\multiblend\\multiblend\\x64\\ReleaseApp\\") + std::to_string(i) + std::string("_after_inpaint.png");
-	//cv::imwrite(out_inpaint, matimage);
-	
 
-	free(untrimmed);
+	#ifdef NO_OPENCV
+		void* untrimmed = (void*)malloc(I.width * I.height * sizeof(uint32));
+		if (!untrimmed) die("not enough memory to process images");
+		extract_opencv(mask, matimage, &I, untrimmed);
+		//cv::Mat inp_mat = matimage.clone();
+		//inpaint(&I, (uint32*)untrimmed);
+		//to_cvmat(inp_mat, &I);
+		//std::string out_inpaint = std::string("J:\\git\\multiblend\\multiblend\\x64\\ReleaseApp\\") + std::to_string(i) + std::string("_after_inpaint.png");
+		//cv::imwrite(out_inpaint, matimage);
+		free(untrimmed);
+	#endif
 }
 
 void load_images() {

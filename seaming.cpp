@@ -597,6 +597,8 @@ void find_seamdistances_cycle_y_horiz(
 	int shift, int ybeg, int yend, int xbeg, int xend,
 	int l_straight)
 {
+	Proftimer proftimer(&mprofiler, "find_seamdistances_cycle_y_horiz");
+
 	std::vector<const uint8_t*> pmasks(masks.size(), NULL);
 	const uint8_t *poutmask = NULL;
 	int* pdist = NULL;
@@ -632,6 +634,8 @@ void find_seamdistances_cycle_x(
 	int tmp_xbeg, int tmp_xend,
 	int l_straight, int l_diag)
 {
+	Proftimer proftimer(&mprofiler, "find_seamdistances_cycle_x");
+
 	for (int x = tmp_xbeg; x < tmp_xend; ++x)
 	{
 		if (pdist[x] == 0)
@@ -668,6 +672,8 @@ void find_seamdistances_cycle_y_vert(
 	int shift, int ybeg, int yend, int xbeg, int xend,
 	int l_straight, int l_diag)
 {
+	Proftimer proftimer(&mprofiler, "find_seamdistances_cycle_y_vert");
+
 	std::vector<const uint8_t*> pmasks(masks.size(), NULL);
 	const uint8_t *poutmask = NULL;
 
@@ -895,8 +901,7 @@ void write_g_edt()
 	cv::imwrite("seam_image.png", mat_image);
 }
 
-
-void seam(cv::Mat &nums) {
+void seam() {
 
 	Proftimer proftimer(&mprofiler, "seam");
 
@@ -908,46 +913,38 @@ void seam(cv::Mat &nums) {
 	if (!g_seamload_filename) {
 		if (g_xor_filename) seam_png(0,g_xor_filename);
 
-		if (!g_simpleseam) {
-			g_edt=(uint32*)_aligned_malloc(g_workwidth*g_workheight*sizeof(uint32),0); // if malloc fails fall back on dtcomp
-
-			if (!g_edt) die("not enough memory to create seams");
-
-			Proftimer proftimer_def(&mprofiler, "default_seam");
-			leftupxy();
-			rightdownxy();
-			make_seams();
-			_aligned_free(g_edt);
-			proftimer_def.stop();
+		#ifdef NO_OPENCV
+			if (!g_simpleseam) {
+				g_edt=(uint32*)_aligned_malloc(g_workwidth*g_workheight*sizeof(uint32),0); // if malloc fails fall back on dtcomp
+				if (!g_edt) die("not enough memory to create seams");
+				leftupxy();
+				rightdownxy();
+				make_seams();
+				_aligned_free(g_edt);
+				/*
+				cv::imwrite("seam_image_opencv.png", g_cvseams * 30);
+				cv::Mat tmp;
+					dist /= 10;
+				dist.convertTo(tmp, CV_8U);
+				cv::imwrite("seam_dist_opencv.png", tmp);
+				dist *= 10;
+				write_g_edt();
 			
-			Proftimer proftimer_opencv(&mprofiler, "opencv_seam");
+				cv::Mat sum = g_cvmasks[0].clone();
+				sum /= 10;
+				for (int i = 1; i < g_numimages; ++i)
+					sum += g_cvmasks[i] / 10;
+				cv::Mat newsum(sum, cv::Rect(0,0,g_workwidth, g_workheight));
+				cv::imwrite("sum_masks.png", newsum);
+				*/
+			} else {
+				simple_seam();
+			}
+			if (g_seamsave_filename) seam_png(1,g_seamsave_filename);
+		#else
 			cv::Mat dist;
 			set_g_edt_opencv(dist, g_cvseams, g_cvoutmask, g_cvmasks);
-			dist.release();
-			proftimer_opencv.stop();
-
-			/*
-			cv::imwrite("seam_image_opencv.png", g_cvseams * 30);
-			cv::Mat tmp;
-			dist /= 10;
-			dist.convertTo(tmp, CV_8U);
-			cv::imwrite("seam_dist_opencv.png", tmp);
-			dist *= 10;
-			write_g_edt();
-			
-
-			cv::Mat sum = g_cvmasks[0].clone();
-			sum /= 10;
-			for (int i = 1; i < g_numimages; ++i)
-				sum += g_cvmasks[i] / 10;
-			cv::Mat newsum(sum, cv::Rect(0,0,g_workwidth, g_workheight));
-			cv::imwrite("sum_masks.png", newsum);
-			*/
-		} else {
-			simple_seam();
-		}
-
-		if (g_seamsave_filename) seam_png(1,g_seamsave_filename);
+		#endif
 
 		for (i=0; i<g_numimages; i++) {
 			if (!g_images[i].seampresent) {

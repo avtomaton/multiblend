@@ -6,6 +6,54 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+void clear_temp() {
+	int i, c;
+
+	for (i = 0; i<g_numimages; i++) {
+		for (c = 0; c<g_numchannels; c++) {
+			if (g_images[i].channels[c].f) {
+				fclose(g_images[i].channels[c].f);
+#ifdef WIN32
+				DeleteFile(g_images[i].channels[c].filename);
+#endif
+			}
+		}
+	}
+}
+
+void clean_globals()
+{
+	#ifdef NO_OPENCV
+	for (int c = 0; c < g_numchannels; ++c)
+		_aligned_free(g_out_channels[c]);
+
+	free(g_out_channels);
+
+	for (int i = 0; i < g_numimages; ++i)
+		for (int l = 0; l < g_levels; ++l)
+			free(g_images[i].masks[l]);
+	free(g_seams);
+
+	for (int i = 0; i < g_numimages; ++i)
+		free(g_images[i].masks);
+
+	_aligned_free(g_line2);
+	_aligned_free(g_line1);
+	_aligned_free(g_line0);
+
+	free(g_palette);
+
+	for (int i = 0; i < g_numimages; ++i)
+	{
+		free(g_images[i].binary_mask.data);
+		free(g_images[i].binary_mask.rows);
+		free(g_images[i].channels);
+	}
+
+	#endif
+
+	free(g_images);
+}
 
 void output(int level, const char* fmt, ...) {
 	va_list args;
@@ -19,21 +67,6 @@ void output(int level, const char* fmt, ...) {
 
 void report_time(const char* name, double time) {
 	if (g_timing) output(0,"%s: %.3fs\n",name,time);
-}
-
-void clear_temp() {
-	int i,c;
-
-	for (i=0; i<g_numimages; i++) {
-		for (c=0; c<g_numchannels; c++) {
-			if (g_images[i].channels[c].f) {
-				fclose(g_images[i].channels[c].f);
-#ifdef WIN32
-				DeleteFile(g_images[i].channels[c].filename);
-#endif
-			}
-		}
-	}
 }
 
 #ifndef WIN32

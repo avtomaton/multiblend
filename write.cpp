@@ -113,6 +113,7 @@ void jpeg_out() {}
 #if TIFF_LIBRARY
 void tiff_out() {
 	Proftimer proftimer(&mprofiler, "tiff_out");
+	printf("tiff_out\n");
 	int i,j;
 	int m;
 	int mincount;
@@ -291,13 +292,135 @@ void tiff_out() {
 				}
 			}
 			y++;
+
 		}
 		Proftimer proftimer_TIFFWriteEncodedStrip(&mprofiler, "tiff_out_TIFFWriteEncodedStrip");
 		TIFFWriteEncodedStrip(g_tiff,s,strip,rows*mul);
 		proftimer_TIFFWriteEncodedStrip.stop();
 		remaining-=rows;
 	}
+
 	Proftimer proftimer_TIFFClose(&mprofiler, "TIFFClose");
+	TIFFClose(g_tiff);
+	proftimer_TIFFClose.stop();
+}
+
+void tiff_cvout()
+{
+	Proftimer proftimer(&mprofiler, "tiff_cvout");
+
+	printf("tiff_cvout\n");
+	int i;
+	int rowsperstrip = 64;
+	int p = 0;
+	int strips;
+	int remaining;
+	int strip_p;
+	int x, y = 0, s;
+	int stripy;
+	int rows;
+	uint16 out[1];
+	int mul;
+
+	mul = 3;
+	if (!g_nomask) mul = 4;
+	if (g_workbpp == 16) mul = mul << 1;
+	mul = mul*g_workwidth;
+
+	for (i = 0; i<g_numimages; i++) g_images[i].binary_mask.pointer = g_images[i].binary_mask.data;
+
+	void* strip = malloc((rowsperstrip*g_workwidth) << (g_workbpp >> 2));
+
+	TIFFSetField(g_tiff, TIFFTAG_IMAGEWIDTH, g_workwidth);
+	TIFFSetField(g_tiff, TIFFTAG_IMAGELENGTH, g_workheight);
+	TIFFSetField(g_tiff, TIFFTAG_COMPRESSION, g_compression);
+	TIFFSetField(g_tiff, TIFFTAG_PLANARCONFIG, PLANARCONFIG_CONTIG);
+	TIFFSetField(g_tiff, TIFFTAG_ROWSPERSTRIP, rowsperstrip);
+	TIFFSetField(g_tiff, TIFFTAG_BITSPERSAMPLE, g_workbpp);
+	if (g_nomask) {
+		TIFFSetField(g_tiff, TIFFTAG_SAMPLESPERPIXEL, 3);
+	}
+	else {
+		TIFFSetField(g_tiff, TIFFTAG_SAMPLESPERPIXEL, 4);
+		out[0] = EXTRASAMPLE_UNASSALPHA;
+		TIFFSetField(g_tiff, TIFFTAG_EXTRASAMPLES, 1, &out);
+	}
+	TIFFSetField(g_tiff, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_RGB);
+	if (g_xres != -1) { TIFFSetField(g_tiff, TIFFTAG_XRESOLUTION, g_xres); TIFFSetField(g_tiff, TIFFTAG_XPOSITION, (float)(g_min_left / g_xres)); }
+	if (g_yres != -1) { TIFFSetField(g_tiff, TIFFTAG_YRESOLUTION, g_yres); TIFFSetField(g_tiff, TIFFTAG_YPOSITION, (float)(g_min_top / g_yres)); }
+
+	if (g_images[0].geotiff.set) {
+		// if we got a georeferenced input, store the geotags in the output
+		GeoTIFFInfo info(g_images[0].geotiff);
+		info.XGeoRef = g_min_left * g_images[0].geotiff.XCellRes;
+		info.YGeoRef = -g_min_top * g_images[0].geotiff.YCellRes;
+		output(1, "Output georef: UL: %f %f, pixel size: %f %f\n", info.XGeoRef, info.YGeoRef, info.XCellRes, info.YCellRes);
+		geotiff_write(g_tiff, &info);
+	}
+
+	strips = (int)((g_workheight + rowsperstrip - 1) / rowsperstrip);
+	remaining = g_workheight;
+
+	printf("g_workspace: %d x %d\n", g_workwidth, g_workheight);
+
+	int cvy = 0;
+	cv::Vec3b *pmat;
+	uint8_t * pmask;
+
+	for (s = 0; s<strips; s++) {
+		rows = std::min(remaining, rowsperstrip);
+		strip_p = 0;
+		for (stripy = 0; stripy<rows; stripy++) {
+			if (y < g_cvout.rows)
+			{
+				pmat = g_cvout.ptr<cv::Vec3b>(y);
+				if (g_nomask)
+				{
+					for (x = 0; x < g_workwidth; ++x) {
+						((uint8*)strip)[strip_p++] = pmat[x][2];
+						((uint8*)strip)[strip_p++] = pmat[x][1];
+						((uint8*)strip)[strip_p++] = pmat[x][0];
+					}
+				}
+				else
+				{
+					pmask = g_cvoutmask.ptr<uint8_t>(y);
+					for (x = 0; x < g_workwidth; x++) {
+						if (pmask[x] == 0)
+						{
+							((uint8*)strip)[strip_p++] = pmat[x][2];
+							((uint8*)strip)[strip_p++] = pmat[x][1];
+							((uint8*)strip)[strip_p++] = pmat[x][0];
+							((uint8*)strip)[strip_p++] = 0xff;
+						}
+						else
+						{
+							strip_p += 3;
+							((uint8*)strip)[strip_p++] = 0;
+						}
+					}
+				}
+			}
+			else
+			{
+				if (g_nomask)
+					strip_p += 3 * g_workwidth;
+				else
+				{
+					for (x = 0; x < g_workwidth; x++) 
+					{
+						strip_p += 3;
+						((uint8*)strip)[strip_p++] = 0;
+					}
+				}
+			}
+			++y;
+		}
+
+		TIFFWriteEncodedStrip(g_tiff, s, strip, rows*mul);
+		remaining -= rows;
+	}
+
 	TIFFClose(g_tiff);
 }
 #else

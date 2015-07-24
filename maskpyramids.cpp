@@ -597,16 +597,14 @@ cv::Mat get_mask(int i, int l, int w, int h)
 void mask_pyramids() {
 	Proftimer proftimer(&mprofiler, "mask_pyramids");
 	output(1,"masks...\n");
-
-	Proftimer proftimer_default(&mprofiler, "default_mask_pyramids");
-	extract_top_masks();
-	extract_top_masks_opencv();
-	proftimer_default.stop();
-
-	Proftimer proftimer_opencv(&mprofiler, "opencv_mask_pyramids");
-	shrink_masks();
-	shrink_masks_opencv();
-	proftimer_opencv.stop();
+	
+	#ifdef NO_OPENCV
+		extract_top_masks();
+		shrink_masks();
+	#else
+		extract_top_masks_opencv();
+		shrink_masks_opencv();
+	#endif
 
 	/*for (int i = 0; i < g_numimages; ++i)
 	{
