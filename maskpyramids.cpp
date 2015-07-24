@@ -588,11 +588,14 @@ cv::Mat get_mask(int i, int l, int w, int h)
 
 void mask_pyramids() {
 	output(1,"masks...\n");
-
-	extract_top_masks();
-	extract_top_masks_opencv();
-	shrink_masks();
-	shrink_masks_opencv();
+	
+	#ifdef NO_OPENCV
+		extract_top_masks();
+		shrink_masks();
+	#else
+		extract_top_masks_opencv();
+		shrink_masks_opencv();
+	#endif
 
 	/*for (int i = 0; i < g_numimages; ++i)
 	{

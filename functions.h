@@ -26,6 +26,7 @@ void _aligned_free(void* a);
 void fopen_s(FILE** f, const char* filename, const char* mode);
 #endif
 
+void clean_globals();
 void clear_temp();
 void die(const char* error, ...);
 bool is_two_areas(const cv::Mat &mask, struct_image* image);
@@ -107,7 +108,7 @@ void find_seamdistances_cycle_y_vert(
 	int l_straight, int l_diag);
 void init_seamdist(cv::Mat &dist, cv::Mat &nums, cv::Mat &outmask, const std::vector<cv::Mat> &masks);
 void set_g_edt_opencv(cv::Mat &dist, cv::Mat &nums, cv::Mat &outmask, const std::vector<cv::Mat> &masks);
-void seam(cv::Mat &nums);
+void seam();
 
 //maskpyramids
 void png_mask(int i);
@@ -133,7 +134,9 @@ void blend();
 //write
 void jpeg_out();
 void tiff_out();
+void tiff_cvout();
 void opencv_out();
+
 //pseudowrap
 void pseudowrap_split();
 void pseudowrap_seam();

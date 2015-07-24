@@ -1329,22 +1329,20 @@ void mat2struct(int i, const std::string &filename, cv::Mat &matimage, const cv:
 
 	g_workwidth = std::max(g_workwidth, (int)(I.xpos + I.width));
 	g_workheight = std::max(g_workheight, (int)(I.ypos + I.height));
+	
+	inpaint_opencv(matimage, mask, &I, dist);
 
+#ifdef NO_OPENCV
 	void* untrimmed = (void*)malloc(I.width * I.height * sizeof(uint32));
 	if (!untrimmed) die("not enough memory to process images");
-
-	inpaint_opencv(matimage, mask, &I, dist);
 	extract_opencv(mask, matimage, &I, untrimmed);
-	//inpaint(&I, (uint32*)untrimmed);
-	
-	
 	//cv::Mat inp_mat = matimage.clone();
+	//inpaint(&I, (uint32*)untrimmed);
 	//to_cvmat(inp_mat, &I);
 	//std::string out_inpaint = std::string("J:\\git\\multiblend\\multiblend\\x64\\ReleaseApp\\") + std::to_string(i) + std::string("_after_inpaint.png");
 	//cv::imwrite(out_inpaint, matimage);
-	
-
 	free(untrimmed);
+#endif
 }
 
 void load_images() {

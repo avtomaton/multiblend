@@ -3,35 +3,6 @@
 
 #include <algorithm>
 
-void clean_globals()
-{
-	for (int c = 0; c < g_numchannels; ++c) 
-		_aligned_free(g_out_channels[c]);
-
-	free(g_out_channels);
-
-	for (int i = 0; i < g_numimages; ++i)
-		for (int l = 0; l < g_levels; ++l) 
-			free(g_images[i].masks[l]);
-
-	free(g_seams);
-	free(g_palette);
-
-	for (int i = 0; i < g_numimages; ++i) 
-		free(g_images[i].masks);
-
-	_aligned_free(g_line2);
-	_aligned_free(g_line1);
-	_aligned_free(g_line0);
-
-	for (int i = 0; i < g_numimages; ++i)
-	{
-		free(g_images[i].binary_mask.data);
-		free(g_images[i].binary_mask.rows);
-		free(g_images[i].channels);
-	}
-	free(g_images);
-}
 
 void go() {
 	int blend_wh;
@@ -96,9 +67,11 @@ void go() {
 
 	pitch=(g_workwidth+7)&(~7);
 
-	g_line0=_aligned_malloc(pitch*sizeof(int),16);
-	g_line1=_aligned_malloc(pitch*sizeof(int),16);
-	g_line2=_aligned_malloc(pitch*sizeof(int),16);
+	#ifdef NO_OPENCV
+		g_line0=_aligned_malloc(pitch*sizeof(int),16);
+		g_line1=_aligned_malloc(pitch*sizeof(int),16);
+		g_line2=_aligned_malloc(pitch*sizeof(int),16);
+	#endif
 
 	if (g_numimages==1) {
 		if (g_caching) die("Caching is still enabled but only one input image; multiblend can't continue!");
@@ -109,16 +82,17 @@ void go() {
 	}
 
 	// dimension mask structs for all images
-	for (i=0; i<g_numimages; i++) g_images[i].masks=(float**)malloc(g_levels*sizeof(float*));
+	#ifdef NO_OPENCV
+		for (i=0; i<g_numimages; i++) g_images[i].masks=(float**)malloc(g_levels*sizeof(float*));
+	#endif
 
 	// calculate seams
 	timer.set();
-	cv::Mat nums;
 	if (g_pseudowrap) {
 		//maybe memory leak
 		pseudowrap_seam();
 	} else {
-		seam(nums);
+		seam();
 	}
 	timer.report("seaming");
 
@@ -146,7 +120,11 @@ void go() {
 			jpeg_out();
 		else
 		#endif
-			tiff_out();
+			#ifdef NO_OPENCV
+				tiff_out();
+			#else
+				tiff_cvout();
+			#endif
 		#else
  		opencv_out();
 		#endif
@@ -154,6 +132,7 @@ void go() {
 		timer.report("write");
 	}
 
+	clear_temp();
 	clean_globals();
 
 	//	ppm_out(out_channels);
