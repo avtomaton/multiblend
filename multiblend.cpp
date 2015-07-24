@@ -206,6 +206,8 @@ int main()
 	std::vector<std::vector<cv::Mat> > cvmaskpyramids;
 	cv::Mat cvoutmask;
 
+	cv::cuda::GpuMat gpumat;
+
 	int K = 2;
 	std::vector<std::string> base_name(K);
 	base_name[0] = "000000001";
