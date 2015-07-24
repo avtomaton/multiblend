@@ -361,6 +361,7 @@ void shrink_hps(struct_level* upper, struct_level* lower) {
 	//hps(upper,lower);
 }
 
+#ifdef NO_CUDA
 void resizedown(const cv::Mat &umat, cv::Mat &lmat, const cv::Size &ofs)
 {
 	//printf("resizedown\n");
@@ -426,7 +427,20 @@ void resizeup(const cv::Mat &lmat, cv::Mat &umat, const cv::Size &ofs = cv::Size
 		umat.at<cv::Vec3s>((lh - 1) * 2, x) = tmp.at<cv::Vec3s>(lh - 1, x);
 	}
 }
+#else
+void resizedown(const cv::cuda::GpuMat &umat, cv::cuda::GpuMat &lmat, const cv::Size &ofs)
+{
+	printf("resizeup\n");
+	exit(1);
+}
+void resizeup(const cv::cuda::GpuMat &lmat, cv::cuda::GpuMat &umat, const cv::Size &ofs = cv::Size(0, 0))
+{
+	printf("resizeup\n");
+	exit(1);
+}
+#endif
 
+#ifdef NO_CUDA
 void shrink_opencv(struct_level* upper, struct_level* lower, const cv::Mat &umat, cv::Mat &lmat)
 {
 	Proftimer proftimer(&mprofiler, "shrink_opencv");
@@ -484,11 +498,18 @@ void hps_opencv(struct_level* upper, struct_level* lower, cv::Mat &umat, const c
 	proftimer_resize.stop();
 	umat -= tmp2;
 }
-
-void shrink_hps_opencv(struct_level* upper, struct_level *lower, cv::Mat &umat, cv::Mat &lmat) {
-	shrink_opencv(upper, lower, umat, lmat);
-	//hps_opencv(upper, lower, umat, lmat);
+#else
+void shrink_opencv(struct_level* upper, struct_level* lower, const cv::cuda::GpuMat &umat, cv::cuda::GpuMat &lmat)
+{
+	printf("shrink_opencv\n");
+	exit(1);
 }
+void hps_opencv(struct_level* upper, struct_level* lower, cv::cuda::GpuMat &umat, const cv::cuda::GpuMat &lmat)
+{
+	printf("hps_opencv\n");
+	exit(1);
+}
+#endif
 
 void copy_channel(int i, int c) {
 	Proftimer proftimer(&mprofiler, "copy_channel");
@@ -608,6 +629,7 @@ void copy_channel(int i, int c) {
 	}
 }
 
+#ifdef NO_CUDA
 void copy_channel_opencv(int i)
 {
 	Proftimer proftimer(&mprofiler, "copy_channel_opencv");
@@ -656,6 +678,13 @@ void copy_channel_opencv(int i)
 			plevel[x] = pborder[x];
 	}
 }
+#else
+void copy_channel_opencv(int i)
+{
+	printf("copy_channel_opencv\n");
+	exit(1);
+}
+#endif
 
 #define NEXT_MASK { \
 	pixel.f=*mask++; \
@@ -768,8 +797,13 @@ void mask_into_output_opencv(int i, int l, bool first)
 	int chsize = g_cvmatpyramids[l].channels();
 
 	if (first)
+	{
+		#ifdef NO_CUDA
 		g_cvoutput_pyramid[l] = cv::Mat::zeros(g_cvmaskpyramids[i][l].size(), g_cvmatpyramids[l].type());
-
+		#else
+		g_cvoutput_pyramid[l] = cv::cuda::GpuMat(g_cvmaskpyramids[i][l].size(), g_cvmatpyramids[l].type(), cv::Scalar(0));
+		#endif
+	}
 	int x_extra0, y_extra0;
 	int xlim, ylim;
 
@@ -899,20 +933,33 @@ void collapse(struct_level* lower, struct_level* upper) {
 	}
 
 }
-
+#ifdef NO_CUDA
 void collapse_opencv(const cv::Mat &lower, cv::Mat &upper)
+#else
+void collapse_opencv(const cv::cuda::GpuMat &lower, cv::cuda::GpuMat &upper)
+#endif
 {
 	Proftimer proftimer(&mprofiler, "collapse_opencv");
 
 	printf("collapse_opencv\n");
+	
+	#ifdef NO_CUDA
 	cv::Mat tmp(upper.size(), upper.type());
-	Proftimer proftimer_resize(&mprofiler, "resizeup_collapse");
+	#else
+	cv::cuda::GpuMat tmp(upper.size(), upper.type());
+	#endif
 
+	Proftimer proftimer_resize(&mprofiler, "resizeup_collapse");
 	resizeup(lower, tmp);
 	proftimer_resize.stop();
 
+	#ifdef NO_CUDA
 	upper += tmp;
+	#else
+	cv::cuda::add(upper, tmp, upper, cv::cuda::GpuMat(), -1, cv::cuda::Stream::Null());
+	#endif
 }
+
 
 void dither(struct_level* top, void* channel) {
 	Proftimer proftimer(&mprofiler, "dither");
@@ -967,6 +1014,7 @@ void dither(struct_level* top, void* channel) {
 	}
 }
 
+#ifdef NO_CUDA
 void dither_opencv(cv::Mat &top, cv::Mat &out)
 {
 	Proftimer proftimer(&mprofiler, "dither_opencv");
@@ -1006,6 +1054,13 @@ void dither_opencv(cv::Mat &top, cv::Mat &out)
 		}
 	}
 }
+#else
+void dither_opencv(cv::cuda::GpuMat &top, cv::cuda::GpuMat &out)
+{
+	printf("dither_opencv\n");
+	exit(1);
+}
+#endif
 
 cv::Mat get_cvpyramid(const cv::Mat &mat)
 {
@@ -1303,7 +1358,7 @@ void blend() {
 
 		for (l = 0; l < g_levels - 1; l++)
 		{
-			shrink_hps_opencv(&PY(i, l), &PY(i, l + 1), g_cvmatpyramids[l], g_cvmatpyramids[l + 1]);
+			shrink_opencv(&PY(i, l), &PY(i, l + 1), g_cvmatpyramids[l], g_cvmatpyramids[l + 1]);
 			hps_opencv(&PY(i, l), &PY(i, l + 1), g_cvmatpyramids[l], g_cvmatpyramids[l + 1]);
 			//channels_pyramid[i][l][0] = get_cvpyramid(g_cvmatpyramids[l]);
 			//if (l == g_levels - 2)
@@ -1345,8 +1400,11 @@ void blend() {
 
 	for (l = g_levels - 1; l > 0; l--)
 		collapse_opencv(g_cvoutput_pyramid[l], g_cvoutput_pyramid[l - 1]);
-	
+	#ifdef NO_CUDA
 	cv::Mat tmpout;
+	#else
+	cv::cuda::GpuMat tmpout;
+	#endif
 	/*cv::Mat tmpout2;
 	tmpout = g_cvoutput_pyramid[0].clone();
 	tmpout /= 1 << ACCURACY;
@@ -1357,11 +1415,19 @@ void blend() {
 	outstring += ".png";
 	cv::imwrite(outstring, tmpout2);
 	*/
-	
+
 	dither_opencv(g_cvoutput_pyramid[0], tmpout);
 
+	#ifdef NO_CUDA
 	cv::Mat outroi(tmpout, cv::Rect(0, 0, g_workwidth, g_workheight));
 	g_cvout = outroi;
+	#else
+	cv::cuda::GpuMat outroi(tmpout, cv::Rect(0, 0, g_workwidth, g_workheight));
+	outroi.download(g_cvout);
+	#endif
+	
+	//apply_mask(g_cvout, g_cvoutmask);
+	//cv::imwrite("output_opencv.png", g_cvout);
 #endif
 
 	///////////////////////////////////////////////////////////////////////////////////////////

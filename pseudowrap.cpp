@@ -1,5 +1,5 @@
 #include "globals.h"
-
+#ifdef NO_CUDA
 void pseudowrap_split() {
 	printf("pseudowrap_split\n");
 	Proftimer proftimer(&mprofiler, "pseudowrap_split");
@@ -74,3 +74,22 @@ void pseudowrap_unsplit() {
 
 	g_numimages--;
 }
+#else
+void pseudowrap_split() 
+{
+	printf("pseudowrap_split\n");
+	exit(1);
+}
+
+void pseudowrap_seam() 
+{
+	printf("pseudowrap_seam\n");
+	exit(1);
+}
+
+void pseudowrap_unsplit() 
+{
+	printf("pseudowrap_unsplit\n");
+	exit(1);
+}
+#endif

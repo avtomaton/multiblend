@@ -5,7 +5,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-
+#include <opencv2/cudawarping.hpp>
 
 void png_mask(int i) {
 	int x,y;
@@ -484,15 +484,25 @@ void shrink_masks_opencv() {
 			oh = (h + 1) >> 1;
 			if (ow % 2 != 0 && oh % 2 != 0)
 			{
+				#ifdef NO_CUDA
 				cv::resize(g_cvmaskpyramids[i][l], g_cvmaskpyramids[i][l + 1], cv::Size(ow, oh));
+				#else
+				cv::cuda::resize(g_cvmaskpyramids[i][l], g_cvmaskpyramids[i][l + 1], cv::Size(ow, oh));
+				#endif
 			}
 			else
 			{
+				#ifdef NO_CUDA
 				cv::Mat tmp;
 				cv::resize(g_cvmaskpyramids[i][l], tmp, cv::Size(ow, oh));
-				
+				#else
+				cv::cuda::GpuMat tmp;
+				cv::cuda::resize(g_cvmaskpyramids[i][l], tmp, cv::Size(ow, oh));
+				#endif
+
 				if (ow % 2 == 0) ++ow;
 				if (oh % 2 == 0) ++oh;
+				#ifdef NO_CUDA
 				g_cvmaskpyramids[i][l + 1] = cv::Mat(oh, ow, g_cvmaskpyramids[i][l].type());
 				for (int y = 0; y < tmp.rows; ++y)
 				{
@@ -512,6 +522,11 @@ void shrink_masks_opencv() {
 					for (int x = 0; x < ow; ++x)
 						pmat[x] = pborder[x];
 				}
+				#else
+				g_cvmaskpyramids[i][l + 1] = cv::cuda::GpuMat(oh, ow, g_cvmaskpyramids[i][l].type());
+				printf("computing(cuda)\n");
+				exit(1);
+				#endif
 			}
 			
 			w = ow;
@@ -535,8 +550,14 @@ void extract_top_masks_opencv()
 	for (int i = 0; i < g_numimages; ++i)
 	{
 		g_cvmaskpyramids[i].resize(g_levels);
+		#ifdef NO_CUDA
 		g_cvmaskpyramids[i][0] = cv::Mat::zeros(rows, cols, CV_32F);
+		#else
+		g_cvmaskpyramids[i][0] = cv::cuda::GpuMat(rows, cols, CV_32F, cv::Scalar(0));
+		#endif
 	}
+
+	#ifdef NO_CUDA
 	std::vector<float*> pmasks(g_numimages);
 	for (int y = 0; y < g_workheight; ++y)
 	{
@@ -565,6 +586,10 @@ void extract_top_masks_opencv()
 				pmasks[i][x] = pborder[x];
 		}
 	}
+	#else
+	printf("computing(cuda)\n");
+	exit(1);
+	#endif
 }
 
 cv::Mat get_mask(int i, int l, int w, int h)

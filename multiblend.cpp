@@ -71,7 +71,12 @@ void parse(std::vector<std::string> &output, const std::string &input)
 		output.push_back(temp);
 }
 
-int multiblend(const std::string &inputstring, std::vector<cv::Mat> &mats, std::vector<cv::Mat> &masks, std::vector<std::vector<cv::Mat> > &cvmaskpyramids, cv::Mat &cvoutmask) {
+#ifdef NO_CUDA
+int multiblend(const std::string &inputstring, std::vector<cv::Mat> &mats, std::vector<cv::Mat> &masks, std::vector<std::vector<cv::Mat> > &cvmaskpyramids, cv::Mat &cvoutmask) 
+#else
+int multiblend(const std::string &inputstring, std::vector<cv::cuda::GpuMat> &mats, std::vector<cv::cuda::GpuMat> &masks, std::vector<std::vector<cv::cuda::GpuMat> > &cvmaskpyramids, cv::cuda::GpuMat &cvoutmask)
+#endif
+{
 	Proftimer proftimer(&mprofiler, "root");
 
 	g_cvmats = mats;
@@ -207,8 +212,13 @@ int multiblend(const std::string &inputstring, std::vector<cv::Mat> &mats, std::
 #ifdef IS_APPLICATION
 int main()
 {
-	std::vector<std::vector<cv::Mat> > cvmaskpyramids;
-	cv::Mat cvoutmask;
+	#ifdef NO_CUDA
+		std::vector<std::vector<cv::Mat> > cvmaskpyramids;
+		cv::Mat cvoutmask;
+	#else
+		std::vector<std::vector<cv::cuda::GpuMat> > cuda_cvmaskpyramids;
+		cv::cuda::GpuMat cuda_cvoutmask;
+	#endif
 
 	int K = 2;
 	std::vector<std::string> base_name(K);
@@ -233,7 +243,20 @@ int main()
 			mats.push_back(cv::imread(base_name[k] + std::string(buf), CV_LOAD_IMAGE_COLOR));
 			masks.push_back(cv::imread(std::string("mask_") + base_name[k] + std::string(buf), CV_LOAD_IMAGE_GRAYSCALE));
 		}
-		multiblend(inputstring, mats, masks, cvmaskpyramids, cvoutmask);
+
+
+		#ifdef NO_CUDA
+			multiblend(inputstring, mats, masks, cvmaskpyramids, cvoutmask);
+		#else
+			std::vector<cv::cuda::GpuMat> cuda_mats(mats.size());
+			std::vector<cv::cuda::GpuMat> cuda_masks(mats.size());
+			for (int i = 0; i < mats.size(); ++i)
+			{
+				cuda_mats[i].upload(mats[i]);
+				cuda_masks[i].upload(masks[i]);
+			}
+			multiblend(inputstring, cuda_mats, cuda_masks, cuda_cvmaskpyramids, cuda_cvoutmask);
+		#endif
 	}
 
 	return 0;

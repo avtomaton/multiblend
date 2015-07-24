@@ -5,6 +5,7 @@
 
 #include <algorithm>
 
+#include <opencv2/cudaarithm.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -861,6 +862,7 @@ void inpaint(struct_image* image, uint32* edt) {
 	if (image->bpp==8) inpaint8(image,edt); else inpaint16(image,edt);
 }
 
+#ifdef NO_CUDA
 void init_dist(const cv::Mat &mask, cv::Mat &dist, struct_image* image)
 {
 	Proftimer proftimer_init_dist(&mprofiler, "init_dist");
@@ -878,7 +880,15 @@ void init_dist(const cv::Mat &mask, cv::Mat &dist, struct_image* image)
 		}
 	}
 }
+#else
+void init_dist(const cv::cuda::GpuMat &mask, cv::cuda::GpuMat &dist, struct_image* image)
+{
+	printf("init_dist(cuda)\n");
+	exit(1);
+}
+#endif
 
+#ifdef NO_CUDA
 void find_distances_cycle_y_horiz(
 	cv::Mat &dist, cv::Mat &mat, const cv::Mat &mask,
 	int shift, int ybeg, int yend, int xbeg, int xend,
@@ -912,7 +922,18 @@ void find_distances_cycle_y_horiz(
 		}
 	}
 }
+#else
+void find_distances_cycle_y_horiz(
+	cv::cuda::GpuMat &dist, cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask,
+	int shift, int ybeg, int yend, int xbeg, int xend,
+	int l_straight)
+{
+	printf("find_distances_cycle_y_horiz(cuda)\n");
+	exit(1);
+}
+#endif
 
+#ifdef NO_CUDA
 inline void find_distances_cycle_x(
 	const uint8_t *pmask, int *pdist, int *pdist_prev, cv::Vec3b *pnums, cv::Vec3b *pnums_prev,
 	int tmp_xbeg, int tmp_xend,
@@ -952,7 +973,18 @@ inline void find_distances_cycle_x(
 
 	}
 }
+#else
+inline void find_distances_cycle_x(
+	const uint8_t *pmask, int *pdist, int *pdist_prev, cv::Vec3b *pnums, cv::Vec3b *pnums_prev,
+	int tmp_xbeg, int tmp_xend,
+	int l_straight, int l_diag)
+{
+	printf("find_distances_cycle_x(cuda)\n");
+	exit(1);
+}
+#endif
 
+#ifdef NO_CUDA
 void find_distances_cycle_y_vert(
 	cv::Mat &dist, cv::Mat &mat, const cv::Mat &mask,
 	int shift, int ybeg, int yend, int xbeg, int xend, int xl, int xr,
@@ -990,8 +1022,23 @@ void find_distances_cycle_y_vert(
 		y += shift;
 	}
 }
+#else
+void find_distances_cycle_y_vert(
+	cv::cuda::GpuMat &dist, cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask,
+	int shift, int ybeg, int yend, int xbeg, int xend, int xl, int xr,
+	bool two_areas,
+	int l_straight, int l_diag)
+{
+	printf("find_distances_cycle_y_vert\n");
+	exit(1);
+}
+#endif
 
+#ifdef NO_CUDA
 void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::Mat &dist)
+#else
+void inpaint_opencv(cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask, struct_image* image, cv::cuda::GpuMat &dist)
+#endif
 {
 	Proftimer proftimer_load_images(&mprofiler, "inpaint_opencv");
 
@@ -1039,7 +1086,6 @@ void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::
 	xend = xl - 1;
 
 	find_distances_cycle_y_horiz(dist, mat, mask, -1, ybeg, yend, xbeg, xend, L_STRAIGHT);
-
 }
 
 void tighten() {
@@ -1122,6 +1168,7 @@ int localize_yr(const cv::Mat &mask, float i0, float istep, float left, float ri
 	return (int)left;
 }
 
+#ifdef NO_CUDA
 int search_l(const cv::Mat &mask, float left, float right, bool isy)
 {
 	int l;
@@ -1158,7 +1205,16 @@ int search_l(const cv::Mat &mask, float left, float right, bool isy)
 
 	return l;
 }
+#else
+int search_l(const cv::cuda::GpuMat &mask, float left, float right, bool isy)
+{
+	printf("search_l\n");
+	exit(1);
+	return 0;
+}
+#endif
 
+#ifdef NO_CUDA
 int search_r(const cv::Mat &mask, float left, float right, bool isy)
 {
 	int r;
@@ -1193,7 +1249,16 @@ int search_r(const cv::Mat &mask, float left, float right, bool isy)
 	}
 	return r;
 }
+#else
+int search_r(const cv::cuda::GpuMat &mask, float left, float right, bool isy)
+{
+	printf("search_r\n");
+	exit(1);
+	return 0;
+}
+#endif
 
+#ifdef NO_CUDA
 cv::Rect get_visible_rect(const cv::Mat &mask)
 {
 	Proftimer proftimer_get_visible_rect(&mprofiler, "get_visible_rect");
@@ -1332,8 +1397,21 @@ cv::Rect get_visible_rect(const cv::Mat &mask)
 	res.height = yr - yl + 1;
 	return res;
 }
+#else
+cv::Rect get_visible_rect(const cv::cuda::GpuMat &mask)
+{
+	cv::Rect res;
+	printf("get_visible_rect(cuda)\n");
+	exit(1);
+	return res;
+}
+#endif
 
+#ifdef NO_CUDA
 void mat2struct(int i, const std::string &filename, cv::Mat &matimage, const cv::Mat &mask, cv::Mat &dist)
+#else
+void mat2struct(int i, const std::string &filename, cv::cuda::GpuMat &matimage, const cv::cuda::GpuMat &mask, cv::cuda::GpuMat &dist)
+#endif
 {
 	Proftimer proftimer_mat2struct(&mprofiler, "mat2struct");
 
@@ -1349,12 +1427,14 @@ void mat2struct(int i, const std::string &filename, cv::Mat &matimage, const cv:
 	I.width = vis_rect.width;
 	I.height = vis_rect.height;
 
-	for (int c = 0; c < g_numchannels; ++c)
-	{
-		if (!(g_images[i].channels[c].data = (void*)malloc((g_images[i].width * g_images[i].height) << (g_images[i].bpp >> 4))))
-			die("not enough memory for image channel");
-		//free(g_images[i].channels[c].data) <=> free(pixels) in void copy_channel(int i, int c), blending.cpp
-	}
+	#ifdef NO_OPENCV
+		for (int c = 0; c < g_numchannels; ++c)
+		{
+			if (!(g_images[i].channels[c].data = (void*)malloc((g_images[i].width * g_images[i].height) << (g_images[i].bpp >> 4))))
+				die("not enough memory for image channel");
+			//free(g_images[i].channels[c].data) <=> free(pixels) in void copy_channel(int i, int c), blending.cpp
+		}
+	#endif
 
 	printf("vis_rect: %d, %d, %d, %d\n", vis_rect.x,vis_rect.y,vis_rect.width,vis_rect.height);
 
@@ -1380,9 +1460,11 @@ void load_images() {
 	Proftimer proftimer_load_images(&mprofiler, "load_images");
 
 	char buf[256];
-	Proftimer proftimer_alloc_dist(&mprofiler, "alloc_dist");
+	#ifdef NO_CUDA
 	cv::Mat dist(g_cvmats[0].size(), CV_32S);
-	proftimer_alloc_dist.stop();
+	#else
+	cv::cuda::GpuMat dist(g_cvmats[0].size(), CV_32S);
+	#endif
 
 	for (int i = 0; i < g_numimages; ++i) {
 		//cv::Mat matimage = cv::imread(argv[i], CV_LOAD_IMAGE_COLOR);

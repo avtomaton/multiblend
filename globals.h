@@ -1,8 +1,9 @@
 #ifndef GLOBALS_H
 #define GLOBALS_H
 
-#include "structs.h"
 #include "profiler.h"
+#include "structs.h"
+#include <opencv2/cudaarithm.hpp>
 
 extern Profiler mprofiler;
 
@@ -65,6 +66,7 @@ extern bool g_bgr;
 extern uint32* g_edt;
 extern struct_image* g_images;
 
+#ifdef NO_CUDA
 extern cv::Mat g_cvseams;
 extern cv::Mat g_cvoutmask;
 extern std::vector<std::vector<cv::Mat> > g_cvmaskpyramids;
@@ -72,5 +74,15 @@ extern std::vector<cv::Mat> g_cvmatpyramids;
 extern std::vector<cv::Mat> g_cvmats;
 extern std::vector<cv::Mat> g_cvmasks;
 extern std::vector<cv::Mat> g_cvoutput_pyramid;
+#else
+extern cv::cuda::GpuMat g_cvseams;
+extern cv::cuda::GpuMat g_cvoutmask;
+extern std::vector<std::vector<cv::cuda::GpuMat> > g_cvmaskpyramids;
+extern std::vector<cv::cuda::GpuMat> g_cvmatpyramids;
+extern std::vector<cv::cuda::GpuMat> g_cvmats;
+extern std::vector<cv::cuda::GpuMat> g_cvmasks;
+extern std::vector<cv::cuda::GpuMat> g_cvoutput_pyramid;
+#endif
 extern cv::Mat g_cvout;
+
 #endif
