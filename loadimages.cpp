@@ -861,6 +861,112 @@ void init_dist(const cv::Mat &mask, cv::Mat &dist, struct_image* image)
 	}
 }
 
+void find_distances_cycle_y_horiz(
+	cv::Mat &dist, cv::Mat &mat, const cv::Mat &mask,
+	int shift, int ybeg, int yend, int xbeg, int xend,
+	int l_straight)
+{
+	const uint8_t* pmask = NULL;
+	int* pdist = NULL;
+	cv::Vec3b* pmat = NULL;
+
+	for (int y = ybeg; y < yend; ++y)
+	{
+		pdist = dist.ptr<int>(y);
+		pmat = mat.ptr<cv::Vec3b>(y);
+		pmask = mask.ptr<uint8_t>(y);
+		int x = xbeg;
+		while (x != xend)
+		{
+			if (pmask[x])
+			{
+				x += shift;
+				continue;
+			}
+			if (pdist[x - shift] + l_straight < pdist[x])
+			{
+				pdist[x] = pdist[x - shift] + l_straight;
+				pmat[x] = pmat[x - shift];
+			}
+			x += shift;
+		}
+	}
+}
+
+inline void find_distances_cycle_x(
+	const uint8_t *pmask, int *pdist, int *pdist_prev, cv::Vec3b *pnums, cv::Vec3b *pnums_prev,
+	int tmp_xbeg, int tmp_xend,
+	int l_straight, int l_diag)
+{
+	for (int x = tmp_xbeg; x < tmp_xend; ++x)
+	{
+		if (pmask[x] || pdist[x] == 0)
+			continue;
+
+		if (pdist_prev[x] + l_straight < pdist[x])
+		{
+			pdist[x] = pdist_prev[x] + l_straight;
+			pnums[x] = pnums_prev[x];
+		}
+
+		if (x != tmp_xbeg)
+		{
+			if (pdist_prev[x - 1] + l_diag < pdist[x])
+			{
+				pdist[x] = pdist_prev[x - 1] + l_diag;
+				pnums[x] = pnums_prev[x - 1];
+			}
+		}
+
+		if (x != (tmp_xend - 1))
+		{
+			if (pdist_prev[x + 1] + l_diag < pdist[x])
+			{
+				pdist[x] = pdist_prev[x + 1] + l_diag;
+				pnums[x] = pnums_prev[x + 1];
+			}
+		}
+
+
+	}
+}
+
+void find_distances_cycle_y_vert(
+	cv::Mat &dist, cv::Mat &mat, const cv::Mat &mask,
+	int shift, int ybeg, int yend, int xbeg, int xend, int xl, int xr,
+	bool two_areas,
+	int l_straight, int l_diag)
+{
+	const uint8_t *pmask = NULL;
+	int *pdist = NULL;
+	cv::Vec3b *pmat = NULL;
+	auto pdist_prev = dist.ptr<int>(ybeg - shift);
+	auto pmat_prev = mat.ptr<cv::Vec3b>(ybeg - shift);
+
+	int y = ybeg;
+	while (y != yend)
+	{
+		pdist = dist.ptr<int>(y);
+		pmat = mat.ptr<cv::Vec3b>(y);
+		pmask = mask.ptr<uint8_t>(y);
+
+		if (two_areas)
+		{
+			find_distances_cycle_x(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xr, l_straight, l_diag);
+			find_distances_cycle_x(pmask, pdist, pdist_prev, pmat, pmat_prev, xl, xend, l_straight, l_diag);
+		}
+		else
+		{
+			find_distances_cycle_x(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xend, l_straight, l_diag);
+		}
+
+		pdist_prev = pdist;
+		pmat_prev = pmat;
+
+		y += shift;
+	}
+}
+
 void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::Mat &dist)
 {
 	init_dist(mask, dist, image);
@@ -885,12 +991,13 @@ void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::
 	ybeg = image->ypos + 1;
 	yend = image->ypos + image->height;
 
-	find_distances_cycle_y_vert<cv::Vec3b>(dist, mat, mask, 1, ybeg, yend, xbeg, xend, xl, xr, two_areas, false, L_STRAIGHT, L_DIAG);
+	find_distances_cycle_y_vert(dist, mat, mask, 1, ybeg, yend, xbeg, xend, xl, xr, two_areas, L_STRAIGHT, L_DIAG);
 
 	// bottom to top
 	ybeg = image->ypos + image->height - 1 - 1;
 	yend = image->ypos - 1;
-	find_distances_cycle_y_vert<cv::Vec3b>(dist, mat, mask, -1, ybeg, yend, xbeg, xend, xl, xr, two_areas, false, L_STRAIGHT, L_DIAG);
+
+	find_distances_cycle_y_vert(dist, mat, mask, -1, ybeg, yend, xbeg, xend, xl, xr, two_areas, L_STRAIGHT, L_DIAG);
 
 //horizontal
 	ybeg = image->ypos;
@@ -899,12 +1006,14 @@ void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::
 	//left to right
 	xbeg = image->xpos + 1;
 	xend = xr;
-	find_distances_cycle_y_horiz<cv::Vec3b>(dist, mat, mask, 1, ybeg, yend, xbeg, xend, false, L_STRAIGHT);
+	find_distances_cycle_y_horiz(dist, mat, mask, 1, ybeg, yend, xbeg, xend, L_STRAIGHT);
 
 	//right to left
 	xbeg = (image->xpos + image->width - 1) - 1;
 	xend = xl - 1;
-	find_distances_cycle_y_horiz<cv::Vec3b>(dist, mat, mask, -1, ybeg, yend, xbeg, xend, false, L_STRAIGHT);
+
+	find_distances_cycle_y_horiz(dist, mat, mask, -1, ybeg, yend, xbeg, xend, L_STRAIGHT);
+
 }
 
 void tighten() {

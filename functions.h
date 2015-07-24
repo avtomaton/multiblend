@@ -43,270 +43,7 @@ inline float get_l2(const cv::Point &p1, const cv::Point &p2)
 	return (p1.x - p2.x)*(p1.x - p2.x) + (p1.y - p2.y)*(p1.y - p2.y);
 }
 
-template<typename T>
-void find_distances_cycle_x(
-	const uint8_t *pmask, 
-	int *pdist, 
-	int *pdist_prev, 
-	T *pnums, 
-	T *pnums_prev, 
-	int tmp_xbeg, 
-	int tmp_xend, 
-	bool invert_mask, 
-	int l_straight, 
-	int l_diag)
-{
-	for (int x = tmp_xbeg; x < tmp_xend; ++x)
-	{
-		if (invert_mask ? !pmask[x] : pmask[x])
-			continue;
-		if (pdist[x] == 0)
-			continue;
 
-		if (pdist_prev[x] + l_straight < pdist[x])
-		{
-			pdist[x] = pdist_prev[x] + l_straight;
-			pnums[x] = pnums_prev[x];
-		}
-
-		if (x != tmp_xbeg)
-		{
-			if (pdist_prev[x - 1] + l_diag < pdist[x])
-			{
-				pdist[x] = pdist_prev[x - 1] + l_diag;
-				pnums[x] = pnums_prev[x - 1];
-			}
-		}
-
-		if (x != (tmp_xend - 1))
-		{
-			if (pdist_prev[x + 1] + l_diag < pdist[x])
-			{
-				pdist[x] = pdist_prev[x + 1] + l_diag;
-				pnums[x] = pnums_prev[x + 1];
-			}
-		}
-
-
-	}
-}
-
-
-template<typename T>
-void find_seamdistances_cycle_x(
-	const std::vector<const uint8_t*> &pmasks,
-	const uint8_t *poutmask,
-	int *pdist,
-	int *pdist_prev,
-	T *pnums,
-	T *pnums_prev,
-	int tmp_xbeg,
-	int tmp_xend,
-	int l_straight,
-	int l_diag)
-{
-	for (int x = tmp_xbeg; x < tmp_xend; ++x)
-	{
-		if (pdist[x] == 0)
-			continue;
-
-		if (pdist_prev[x] + l_straight < pdist[x] && (pmasks[pnums_prev[x]][x] || poutmask[x]))
-		{
-			pdist[x] = pdist_prev[x] + l_straight;
-			pnums[x] = pnums_prev[x];
-		}
-
-		if (x != tmp_xbeg)
-		{
-			if (pdist_prev[x - 1] + l_diag < pdist[x] && (pmasks[pnums_prev[x - 1]][x] || poutmask[x]))
-			{
-				pdist[x] = pdist_prev[x - 1] + l_diag;
-				pnums[x] = pnums_prev[x - 1];
-			}
-		}
-
-		if (x != (tmp_xend - 1))
-		{
-			if (pdist_prev[x + 1] + l_diag < pdist[x] && (pmasks[pnums_prev[x + 1]][x] || poutmask[x]))
-			{
-				pdist[x] = pdist_prev[x + 1] + l_diag;
-				pnums[x] = pnums_prev[x + 1];
-			}
-		}
-	}
-}
-
-template<typename T>
-void find_distances_cycle_y_horiz(
-	cv::Mat &dist, 
-	cv::Mat &mat, 
-	const cv::Mat &mask, 
-	int shift, 
-	int ybeg, 
-	int yend, 
-	int xbeg, 
-	int xend, 
-	bool invert_mask, 
-	int l_straight)
-{
-	const uint8_t* pmask = NULL;
-	int* pdist = NULL;
-	T* pmat = NULL;
-
-	for (int y = ybeg; y < yend; ++y)
-	{
-		pdist = dist.ptr<int>(y);
-		pmat = mat.ptr<T>(y);
-		pmask = mask.ptr<uint8_t>(y);
-		int x = xbeg;
-		while (x != xend)
-		{
-			if (invert_mask ? !pmask[x] : pmask[x])
-			{
-				x += shift;
-				continue;
-			}
-			if (pdist[x - shift] + l_straight < pdist[x])
-			{
-				pdist[x] = pdist[x - shift] + l_straight;
-				pmat[x] = pmat[x - shift];
-			}
-			x += shift;
-		}
-	}
-}
-
-template<typename T>
-void find_seamdistances_cycle_y_horiz(
-	cv::Mat &dist,
-	cv::Mat &mat,
-	const cv::Mat &outmask,
-	const std::vector<cv::Mat> &masks,
-	int shift,
-	int ybeg,
-	int yend,
-	int xbeg,
-	int xend,
-	int l_straight)
-{
-	std::vector<const uint8_t*> pmasks(masks.size(), NULL);
-	const uint8_t *poutmask = NULL;
-	int* pdist = NULL;
-	T* pmat = NULL;
-
-	for (int y = ybeg; y < yend; ++y)
-	{
-		pdist = dist.ptr<int>(y);
-		pmat = mat.ptr<T>(y);
-		poutmask = outmask.ptr<uint8_t>(y);
-		for (int i = 0; i < g_numimages; ++i)
-			pmasks[i] = masks[i].ptr<uint8_t>(y);
-		int x = xbeg;
-		while (x != xend)
-		{
-			if (pdist[x] == 0)
-			{
-				x += shift;
-				continue;
-			}
-			if (pdist[x - shift] + l_straight < pdist[x] && (pmasks[pmat[x - shift]][x] || poutmask[x]))
-			{
-				pdist[x] = pdist[x - shift] + l_straight;
-				pmat[x] = pmat[x - shift];
-			}
-			x += shift;
-		}
-	}
-}
-
-template<typename T>
-void find_distances_cycle_y_vert(
-	cv::Mat &dist, 
-	cv::Mat &mat, 
-	const cv::Mat &mask, 
-	int shift, 
-	int ybeg, 
-	int yend, 
-	int xbeg, 
-	int xend, 
-	int xl,
-	int xr,
-	bool two_areas, 
-	bool invert_mask, 
-	int l_straight,
-	int l_diag)
-{
-	const uint8_t *pmask = NULL;
-	int *pdist = NULL;
-	T *pmat = NULL;
-	int* pdist_prev = dist.ptr<int>(ybeg - shift);
-	T* pmat_prev = mat.ptr<T>(ybeg - shift);
-
-	int y = ybeg;
-	while (y != yend)
-	{
-		pdist = dist.ptr<int>(y);
-		pmat = mat.ptr<T>(y);
-		pmask = mask.ptr<uint8_t>(y);
-				
-		if (two_areas)
-		{
-			find_distances_cycle_x<T>(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xr, invert_mask, l_straight, l_diag);
-			find_distances_cycle_x<T>(pmask, pdist, pdist_prev, pmat, pmat_prev, xl, xend, invert_mask, l_straight, l_diag);
-		}
-		else
-		{
-			find_distances_cycle_x<T>(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xend, invert_mask, l_straight, l_diag);
-		}
-
-		pdist_prev = pdist;
-		pmat_prev = pmat;
-
-		y += shift;
-	}
-}
-
-
-template<typename T>
-void find_seamdistances_cycle_y_vert(
-	cv::Mat &dist,
-	cv::Mat &mat,
-	const cv::Mat &outmask,
-	const std::vector<cv::Mat> &masks,
-	int shift,
-	int ybeg,
-	int yend,
-	int xbeg,
-	int xend,
-	int l_straight,
-	int l_diag)
-{
-	std::vector<const uint8_t*> pmasks(masks.size(), NULL);
-	const uint8_t *poutmask = NULL;
-
-	int *pdist = NULL;
-	T *pmat = NULL;
-	int* pdist_prev = dist.ptr<int>(ybeg - shift);
-	T* pmat_prev = mat.ptr<T>(ybeg - shift);
-
-	int y = ybeg;
-	while (y != yend)
-	{
-		pdist = dist.ptr<int>(y);
-		pmat = mat.ptr<T>(y);
-		poutmask = outmask.ptr<uint8_t>(y);
-
-		for (int i = 0; i < g_numimages; ++i)
-			pmasks[i] = masks[i].ptr<uint8_t>(y);
-
-		find_seamdistances_cycle_x<T>(pmasks, poutmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xend, l_straight, l_diag);
-
-		pdist_prev = pdist;
-		pmat_prev = pmat;
-
-		y += shift;
-	}
-}
 
 
 
@@ -324,7 +61,19 @@ void inpaint8(struct_image* image, uint32* edt);
 void inpaint16(struct_image* image, uint32* edt);
 void inpaint(struct_image* image, uint32* edt);
 void init_dist(const cv::Mat &mask, cv::Mat &dist, struct_image* image);
-
+void find_distances_cycle_y_horiz(
+	cv::Mat &dist, cv::Mat &mat, const cv::Mat &mask,
+	int shift, int ybeg, int yend, int xbeg, int xend,
+	int l_straight);
+inline void find_distances_cycle_x(
+	const uint8_t *pmask, int *pdist, int *pdist_prev, cv::Vec3b *pnums, cv::Vec3b *pnums_prev,
+	int tmp_xbeg, int tmp_xend,
+	int l_straight, int l_diag);
+void find_distances_cycle_y_vert(
+	cv::Mat &dist, cv::Mat &mat, const cv::Mat &mask,
+	int shift, int ybeg, int yend, int xbeg, int xend, int xl, int xr,
+	bool two_areas,
+	int l_straight, int l_diag);
 void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::Mat &dist);
 void tighten();
 int localize_xl(const cv::Mat &mask, float j0, float jstep, float left, float right);
@@ -344,6 +93,20 @@ void rightdownxy();
 void leftupxy();
 void simple_seam();
 void make_seams();
+void find_seamdistances_cycle_y_horiz(
+	cv::Mat &dist, cv::Mat &mat, const cv::Mat &outmask, const std::vector<cv::Mat> &masks,
+	int shift, int ybeg, int yend, int xbeg, int xend,
+	int l_straight);
+void find_seamdistances_cycle_x(
+	const std::vector<const uint8_t*> &pmasks, const uint8_t *poutmask, int *pdist, int *pdist_prev, uint8_t *pnums, uint8_t *pnums_prev,
+	int tmp_xbeg, int tmp_xend,
+	int l_straight, int l_diag);
+void find_seamdistances_cycle_y_vert(
+	cv::Mat &dist, cv::Mat &mat, const cv::Mat &outmask, const std::vector<cv::Mat> &masks,
+	int shift, int ybeg, int yend, int xbeg, int xend,
+	int l_straight, int l_diag);
+void init_seamdist(cv::Mat &dist, cv::Mat &nums, cv::Mat &outmask, const std::vector<cv::Mat> &masks);
+void set_g_edt_opencv(cv::Mat &dist, cv::Mat &nums, cv::Mat &outmask, const std::vector<cv::Mat> &masks);
 void seam(cv::Mat &nums);
 
 //maskpyramids
