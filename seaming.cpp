@@ -592,6 +592,109 @@ void leftupxy() {
 	free(maskcount);
 }
 
+void find_seamdistances_cycle_y_horiz(
+	cv::Mat &dist, cv::Mat &mat, const cv::Mat &outmask, const std::vector<cv::Mat> &masks,
+	int shift, int ybeg, int yend, int xbeg, int xend,
+	int l_straight)
+{
+	std::vector<const uint8_t*> pmasks(masks.size(), NULL);
+	const uint8_t *poutmask = NULL;
+	int* pdist = NULL;
+	uint8_t* pmat = NULL;
+
+	for (int y = ybeg; y < yend; ++y)
+	{
+		pdist = dist.ptr<int>(y);
+		pmat = mat.ptr<uint8_t>(y);
+		poutmask = outmask.ptr<uint8_t>(y);
+		for (int i = 0; i < g_numimages; ++i)
+			pmasks[i] = masks[i].ptr<uint8_t>(y);
+		int x = xbeg;
+		while (x != xend)
+		{
+			if (pdist[x] == 0)
+			{
+				x += shift;
+				continue;
+			}
+			if (pdist[x - shift] + l_straight < pdist[x] && (pmasks[pmat[x - shift]][x] || poutmask[x]))
+			{
+				pdist[x] = pdist[x - shift] + l_straight;
+				pmat[x] = pmat[x - shift];
+			}
+			x += shift;
+		}
+	}
+}
+
+void find_seamdistances_cycle_x(
+	const std::vector<const uint8_t*> &pmasks, const uint8_t *poutmask, int *pdist, int *pdist_prev, uint8_t *pnums, uint8_t *pnums_prev,
+	int tmp_xbeg, int tmp_xend,
+	int l_straight, int l_diag)
+{
+	for (int x = tmp_xbeg; x < tmp_xend; ++x)
+	{
+		if (pdist[x] == 0)
+			continue;
+
+		if (pdist_prev[x] + l_straight < pdist[x] && (pmasks[pnums_prev[x]][x] || poutmask[x]))
+		{
+			pdist[x] = pdist_prev[x] + l_straight;
+			pnums[x] = pnums_prev[x];
+		}
+
+		if (x != tmp_xbeg)
+		{
+			if (pdist_prev[x - 1] + l_diag < pdist[x] && (pmasks[pnums_prev[x - 1]][x] || poutmask[x]))
+			{
+				pdist[x] = pdist_prev[x - 1] + l_diag;
+				pnums[x] = pnums_prev[x - 1];
+			}
+		}
+
+		if (x != (tmp_xend - 1))
+		{
+			if (pdist_prev[x + 1] + l_diag < pdist[x] && (pmasks[pnums_prev[x + 1]][x] || poutmask[x]))
+			{
+				pdist[x] = pdist_prev[x + 1] + l_diag;
+				pnums[x] = pnums_prev[x + 1];
+			}
+		}
+	}
+}
+
+void find_seamdistances_cycle_y_vert(
+	cv::Mat &dist, cv::Mat &mat, const cv::Mat &outmask, const std::vector<cv::Mat> &masks,
+	int shift, int ybeg, int yend, int xbeg, int xend,
+	int l_straight, int l_diag)
+{
+	std::vector<const uint8_t*> pmasks(masks.size(), NULL);
+	const uint8_t *poutmask = NULL;
+
+	int *pdist = NULL;
+	uint8_t *pmat = NULL;
+	auto pdist_prev = dist.ptr<int>(ybeg - shift);
+	auto pmat_prev = mat.ptr<uint8_t>(ybeg - shift);
+
+	int y = ybeg;
+	while (y != yend)
+	{
+		pdist = dist.ptr<int>(y);
+		pmat = mat.ptr<uint8_t>(y);
+		poutmask = outmask.ptr<uint8_t>(y);
+
+		for (int i = 0; i < g_numimages; ++i)
+			pmasks[i] = masks[i].ptr<uint8_t>(y);
+
+		find_seamdistances_cycle_x(pmasks, poutmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xend, l_straight, l_diag);
+
+		pdist_prev = pdist;
+		pmat_prev = pmat;
+
+		y += shift;
+	}
+}
+
 void init_seamdist(cv::Mat &dist, cv::Mat &nums, cv::Mat &outmask, const std::vector<cv::Mat> &masks)
 {
 	Proftimer proftimer(&mprofiler, "init_seamdist");
@@ -658,14 +761,16 @@ void set_g_edt_opencv(cv::Mat &dist, cv::Mat &nums, cv::Mat &outmask, const std:
 
 	// bottom to top
 	ybeg = g_workheight - 1 - 1;
+
 	yend = -1;
-	find_seamdistances_cycle_y_vert<uint8_t>(dist, nums, outmask, masks, -1, ybeg, yend, xbeg, xend, L_STRAIGHT_SEAM, L_DIAG_SEAM);
+	find_seamdistances_cycle_y_vert(dist, nums, outmask, masks, -1, ybeg, yend, xbeg, xend, L_STRAIGHT_SEAM, L_DIAG_SEAM);
 
 	// top to bottom
 	//TODO 1:rows --> ypos:ypos+height...
 	ybeg = 1;
 	yend = g_workheight;
-	find_seamdistances_cycle_y_vert<uint8_t>(dist, nums, outmask, masks, 1, ybeg, yend, xbeg, xend, L_STRAIGHT_SEAM, L_DIAG_SEAM);
+
+	find_seamdistances_cycle_y_vert(dist, nums, outmask, masks, 1, ybeg, yend, xbeg, xend, L_STRAIGHT_SEAM, L_DIAG_SEAM);
 
 //horizontal
 	ybeg = 0;
@@ -674,12 +779,14 @@ void set_g_edt_opencv(cv::Mat &dist, cv::Mat &nums, cv::Mat &outmask, const std:
 	//right to left
 	xbeg = (g_workwidth - 1) - 1; // overlap_of_pano_split * ((g_workwidth - 1) - 1);
 	xend = -1;
-	find_seamdistances_cycle_y_horiz<uint8_t>(dist, nums, outmask, masks, -1, ybeg, yend, xbeg, xend, L_STRAIGHT_SEAM);
+	find_seamdistances_cycle_y_horiz(dist, nums, outmask, masks, -1, ybeg, yend, xbeg, xend, L_STRAIGHT_SEAM);
 
 	//left to right
 	xbeg =  1;
 	xend = g_workwidth; // overlap_of_pano_split * g_workwidth;
-	find_seamdistances_cycle_y_horiz<uint8_t>(dist, nums, outmask, masks, 1, ybeg, yend, xbeg, xend, L_STRAIGHT_SEAM);
+
+	find_seamdistances_cycle_y_horiz(dist, nums, outmask, masks, 1, ybeg, yend, xbeg, xend, L_STRAIGHT_SEAM);
+
 }
 
 void simple_seam() {
