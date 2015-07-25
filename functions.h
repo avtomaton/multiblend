@@ -30,11 +30,6 @@ void fopen_s(FILE** f, const char* filename, const char* mode);
 void clean_globals();
 void clear_temp();
 void die(const char* error, ...);
-#ifdef NO_CUDA
-bool is_two_areas(const cv::Mat &mask, struct_image* image);
-#else
-bool is_two_areas(const cv::cuda::GpuMat &mask, struct_image* image);
-#endif
 
 //geotiff
 /*void geotiff_register(TIFF* tif);
@@ -72,6 +67,7 @@ void tighten();
 inline int non_zero_row(const cv::Mat &mask, int y);
 inline int non_zero_col(const cv::Mat &mask, int x, int yl, int yr);
 inline int non_zero_col(const cv::Mat &mask, int x);
+bool is_two_areas(const cv::Mat &mask);
 int localize_xl(const cv::Mat &mask, float j0, float jstep, float left, float right);
 int localize_xr(const cv::Mat &mask, float j0, float jstep, float left, float right);
 int localize_yl(const cv::Mat &mask, float i0, float istep, float left, float right);
@@ -98,6 +94,7 @@ void mat2struct(int i, const std::string &filename, cv::Mat &matimage, const cv:
 #else
 inline int non_zero_row(const cv::cuda::GpuMat &mask, int y);
 inline int non_zero_col(const cv::cuda::GpuMat &mask, int x);
+bool is_two_areas(const cv::cuda::GpuMat &mask);
 int localize_xl(const cv::cuda::GpuMat &mask, float j0, float jstep, float left, float right);
 int localize_xr(const cv::cuda::GpuMat &mask, float j0, float jstep, float left, float right);
 int localize_yl(const cv::cuda::GpuMat &mask, float i0, float istep, float left, float right);

@@ -1016,10 +1016,17 @@ void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::
 void inpaint_opencv(cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask, struct_image* image, cv::cuda::GpuMat &dist)
 #endif
 {
+	#ifdef NO_CUDA
+	cv::Mat roi_mask(mask, cv::Rect(image->xpos, image->ypos, image->width, image->height));
+	#else
+	cv::cuda::GpuMat roi_mask(mask, cv::Rect(image->xpos, image->ypos, image->width, image->height));
+	#endif
+
 	init_dist(mask, dist, image);
 
 	int xl = image->xpos, xr = (image->xpos + image->width);
-	bool two_areas = is_two_areas(mask, image);
+
+	bool two_areas = is_two_areas(roi_mask);
 	if (two_areas)
 	{
 		xl = search_l(mask, image->xpos + image->width / 2, image->xpos + image->width, false);
@@ -1130,6 +1137,17 @@ inline int non_zero_col(const cv::cuda::GpuMat &mask, int x)
 	return s[0];
 }
 #endif
+
+#ifdef NO_CUDA
+bool is_two_areas(const cv::Mat &mask)
+#else
+bool is_two_areas(const cv::cuda::GpuMat &mask)
+#endif
+{
+	if (non_zero_col(mask, mask.cols / 2))
+		return false;
+	return true;
+}
 
 #ifdef NO_CUDA
 int localize_xl(const cv::Mat &mask, float j0, float jstep, float left, float right)
