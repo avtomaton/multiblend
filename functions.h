@@ -72,13 +72,13 @@ int localize_xl(const cv::Mat &mask, float j0, float jstep, float left, float ri
 int localize_xr(const cv::Mat &mask, float j0, float jstep, float left, float right);
 int localize_yl(const cv::Mat &mask, float i0, float istep, float left, float right);
 int localize_yr(const cv::Mat &mask, float i0, float istep, float left, float right);
-void init_dist(const cv::Mat &mask, cv::Mat &dist, struct_image* image);
+void init_dist(const cv::Mat &mask, cv::Mat &dist);
 void find_distances_cycle_y_horiz(
 	cv::Mat &dist, cv::Mat &mat, const cv::Mat &mask,
 	int shift, int ybeg, int yend, int xbeg, int xend,
 	int l_straight);
 inline void find_distances_cycle_x(
-	const uint8_t *pmask, int *pdist, int *pdist_prev, cv::Vec3b *pnums, cv::Vec3b *pnums_prev,
+	const uint8_t *pmask, float *pdist, float *pdist_prev, cv::Vec3b *pnums, cv::Vec3b *pnums_prev,
 	int tmp_xbeg, int tmp_xend,
 	int l_straight, int l_diag);
 void find_distances_cycle_y_vert(
@@ -89,7 +89,7 @@ void find_distances_cycle_y_vert(
 int search_l(const cv::Mat &mask, float left, float right, bool isy);
 int search_r(const cv::Mat &mask, float left, float right, bool isy);
 cv::Rect get_visible_rect(const cv::Mat &mask);
-void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::Mat &dist);
+void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, const cv::Rect &rect);
 void mat2struct(int i, const std::string &filename, cv::Mat &matimage, const cv::Mat &mask, cv::Mat &dist);
 #else
 inline int non_zero_row(const cv::cuda::GpuMat &mask, int y);
@@ -99,13 +99,13 @@ int localize_xl(const cv::cuda::GpuMat &mask, float j0, float jstep, float left,
 int localize_xr(const cv::cuda::GpuMat &mask, float j0, float jstep, float left, float right);
 int localize_yl(const cv::cuda::GpuMat &mask, float i0, float istep, float left, float right);
 int localize_yr(const cv::cuda::GpuMat &mask, float i0, float istep, float left, float right);
-void init_dist(const cv::cuda::GpuMat &mask, cv::cuda::GpuMat &dist, struct_image* image);
+void init_dist(const cv::cuda::GpuMat &mask, cv::cuda::GpuMat &dist);
 void find_distances_cycle_y_horiz(
 	cv::cuda::GpuMat &dist, cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask,
 	int shift, int ybeg, int yend, int xbeg, int xend,
 	int l_straight);
 inline void find_distances_cycle_x(
-	const uint8_t *pmask, int *pdist, int *pdist_prev, cv::Vec3b *pnums, cv::Vec3b *pnums_prev,
+	const uint8_t *pmask, float *pdist, float *pdist_prev, cv::Vec3b *pnums, cv::Vec3b *pnums_prev,
 	int tmp_xbeg, int tmp_xend,
 	int l_straight, int l_diag);
 void find_distances_cycle_y_vert(
@@ -116,7 +116,7 @@ void find_distances_cycle_y_vert(
 int search_l(const cv::cuda::GpuMat &mask, float left, float right, bool isy);
 int search_r(const cv::cuda::GpuMat &mask, float left, float right, bool isy);
 cv::Rect get_visible_rect(const cv::cuda::GpuMat &mask);
-void inpaint_opencv(cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask, struct_image* image, cv::cuda::GpuMat &dist);
+void inpaint_opencv(cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask, const cv::Rect &rect);
 void mat2struct(int i, const std::string &filename, cv::cuda::GpuMat &matimage, const cv::cuda::GpuMat &mask, cv::cuda::GpuMat &dist);
 #endif
 void load_images();

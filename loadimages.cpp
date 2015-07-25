@@ -847,28 +847,32 @@ void inpaint(struct_image* image, uint32* edt) {
 }
 
 #ifdef NO_CUDA
-void init_dist(const cv::Mat &mask, cv::Mat &dist, struct_image* image)
+void init_dist(const cv::Mat &mask, cv::Mat &dist)
+#else
+void init_dist(const cv::cuda::GpuMat &mask, cv::cuda::GpuMat &dist)
+#endif
 {
-	for (int y = image->ypos; y < (image->ypos + image->height); ++y)
+	int max_dist = 2 * (mask.rows + mask.cols);
+	mask.convertTo(dist, CV_32F);
+	#ifdef NO_CUDA
+	cv::threshold(dist, dist, 127, max_dist, CV_THRESH_BINARY_INV);
+	#else
+	cv::cuda::threshold(dist, dist, 127, max_dist, CV_THRESH_BINARY_INV);
+	#endif
+	/*dist = cv::Mat(mask.size(), CV_32F);
+	for (int y = 0; y < mask.rows; ++y)
 	{
-		const uint8_t *pmask = mask.ptr<uint8_t>(y);
-		int *pdist = dist.ptr<int>(y);
-		for (int x = image->xpos; x < (image->xpos + image->width); ++x)
+		auto pmask = mask.ptr<uint8_t>(y);
+		auto pdist = dist.ptr<float>(y);
+		for (int x = 0; x < mask.cols; ++x)
 		{
 			if (pmask[x])
 				pdist[x] = 0;
 			else
-				pdist[x] = image->height + image->width;
+				pdist[x] = max_dist;
 		}
-	}
+	}*/
 }
-#else
-void init_dist(const cv::cuda::GpuMat &mask, cv::cuda::GpuMat &dist, struct_image* image)
-{
-	printf("init_dist(cuda)\n");
-	exit(1);
-}
-#endif
 
 #ifdef NO_CUDA
 void find_distances_cycle_y_horiz(
@@ -876,15 +880,11 @@ void find_distances_cycle_y_horiz(
 	int shift, int ybeg, int yend, int xbeg, int xend,
 	int l_straight)
 {
-	const uint8_t* pmask = NULL;
-	int* pdist = NULL;
-	cv::Vec3b* pmat = NULL;
-
 	for (int y = ybeg; y < yend; ++y)
 	{
-		pdist = dist.ptr<int>(y);
-		pmat = mat.ptr<cv::Vec3b>(y);
-		pmask = mask.ptr<uint8_t>(y);
+		auto pdist = dist.ptr<float>(y);
+		auto pmat = mat.ptr<cv::Vec3b>(y);
+		auto pmask = mask.ptr<uint8_t>(y);
 		int x = xbeg;
 		while (x != xend)
 		{
@@ -915,7 +915,7 @@ void find_distances_cycle_y_horiz(
 
 #ifdef NO_CUDA
 inline void find_distances_cycle_x(
-	const uint8_t *pmask, int *pdist, int *pdist_prev, cv::Vec3b *pnums, cv::Vec3b *pnums_prev,
+	const uint8_t *pmask, float *pdist, float *pdist_prev, cv::Vec3b *pnums, cv::Vec3b *pnums_prev,
 	int tmp_xbeg, int tmp_xend,
 	int l_straight, int l_diag)
 {
@@ -953,7 +953,7 @@ inline void find_distances_cycle_x(
 }
 #else
 inline void find_distances_cycle_x(
-	const uint8_t *pmask, int *pdist, int *pdist_prev, cv::Vec3b *pnums, cv::Vec3b *pnums_prev,
+	const uint8_t *pmask, float *pdist, float *pdist_prev, cv::Vec3b *pnums, cv::Vec3b *pnums_prev,
 	int tmp_xbeg, int tmp_xend,
 	int l_straight, int l_diag)
 {
@@ -968,19 +968,23 @@ void find_distances_cycle_y_vert(
 	int shift, int ybeg, int yend, int xbeg, int xend, int xl, int xr,
 	bool two_areas,
 	int l_straight, int l_diag)
+#else
+void find_distances_cycle_y_vert(
+	cv::cuda::GpuMat &dist, cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask,
+	int shift, int ybeg, int yend, int xbeg, int xend, int xl, int xr,
+	bool two_areas,
+	int l_straight, int l_diag)
+#endif
 {
-	const uint8_t *pmask = NULL;
-	int *pdist = NULL;
-	cv::Vec3b *pmat = NULL;
-	auto pdist_prev = dist.ptr<int>(ybeg - shift);
+	auto pdist_prev = dist.ptr<float>(ybeg - shift);
 	auto pmat_prev = mat.ptr<cv::Vec3b>(ybeg - shift);
 
 	int y = ybeg;
 	while (y != yend)
 	{
-		pdist = dist.ptr<int>(y);
-		pmat = mat.ptr<cv::Vec3b>(y);
-		pmask = mask.ptr<uint8_t>(y);
+		auto pdist = dist.ptr<float>(y);
+		auto pmat = mat.ptr<cv::Vec3b>(y);
+		auto pmask = mask.ptr<uint8_t>(y);
 
 		if (two_areas)
 		{
@@ -998,39 +1002,32 @@ void find_distances_cycle_y_vert(
 		y += shift;
 	}
 }
-#else
-void find_distances_cycle_y_vert(
-	cv::cuda::GpuMat &dist, cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask,
-	int shift, int ybeg, int yend, int xbeg, int xend, int xl, int xr,
-	bool two_areas,
-	int l_straight, int l_diag)
-{
-	printf("find_distances_cycle_y_vert\n");
-	exit(1);
-}
-#endif
 
 #ifdef NO_CUDA
-void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::Mat &dist)
+void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, const cv::Rect &rect)
 #else
-void inpaint_opencv(cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask, struct_image* image, cv::cuda::GpuMat &dist)
+void inpaint_opencv(cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask, const cv::Rect &rect)
 #endif
 {
 	#ifdef NO_CUDA
-	cv::Mat roi_mask(mask, cv::Rect(image->xpos, image->ypos, image->width, image->height));
+	cv::Mat roi_mask(mask, rect);
+	cv::Mat roi_mat(mat, rect);
+	cv::Mat dist;
 	#else
-	cv::cuda::GpuMat roi_mask(mask, cv::Rect(image->xpos, image->ypos, image->width, image->height));
+	cv::cuda::GpuMat roi_mask(mask, rect);
+	cv::cuda::GpuMat roi_mat(mat, rect);
+	cv::cuda::GpuMat dist;
 	#endif
 
-	init_dist(mask, dist, image);
+	init_dist(roi_mask, dist);
 
-	int xl = image->xpos, xr = (image->xpos + image->width);
+	int xl = 0, xr = roi_mask.cols;
 
 	bool two_areas = is_two_areas(roi_mask);
 	if (two_areas)
 	{
-		xl = search_l(mask, image->xpos + image->width / 2, image->xpos + image->width, false);
-		xr = search_r(mask, image->xpos, image->xpos + image->width / 2, false) + 1;
+		xl = search_l(roi_mask, roi_mask.cols / 2, roi_mask.cols, false);
+		xr = search_r(roi_mask, 0, roi_mask.cols / 2, false) + 1;
 		//printf("xl = %d, xr = %d\n", xl, xr);
 	}
 
@@ -1038,35 +1035,32 @@ void inpaint_opencv(cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask, struct_
 	int xbeg, xend;
 
 //vertical
-	xbeg = image->xpos;
-	xend = image->xpos + image->width;
+	xbeg = 0;
+	xend = roi_mask.cols;
 
 	// top to bottom
-	ybeg = image->ypos + 1;
-	yend = image->ypos + image->height;
-
-	find_distances_cycle_y_vert(dist, mat, mask, 1, ybeg, yend, xbeg, xend, xl, xr, two_areas, L_STRAIGHT, L_DIAG);
+	ybeg = 1;
+	yend = roi_mask.rows;
+	find_distances_cycle_y_vert(dist, roi_mat, roi_mask, 1, ybeg, yend, xbeg, xend, xl, xr, two_areas, L_STRAIGHT, L_DIAG);
 
 	// bottom to top
-	ybeg = image->ypos + image->height - 1 - 1;
-	yend = image->ypos - 1;
-
-	find_distances_cycle_y_vert(dist, mat, mask, -1, ybeg, yend, xbeg, xend, xl, xr, two_areas, L_STRAIGHT, L_DIAG);
+	ybeg = roi_mask.rows - 1 - 1;
+	yend = -1;
+	find_distances_cycle_y_vert(dist, roi_mat, roi_mask, -1, ybeg, yend, xbeg, xend, xl, xr, two_areas, L_STRAIGHT, L_DIAG);
 
 //horizontal
-	ybeg = image->ypos;
-	yend = image->ypos + image->height;
+	ybeg = 0;
+	yend = roi_mask.rows;
 
 	//left to right
-	xbeg = image->xpos + 1;
+	xbeg = 1;
 	xend = xr;
-	find_distances_cycle_y_horiz(dist, mat, mask, 1, ybeg, yend, xbeg, xend, L_STRAIGHT);
+	find_distances_cycle_y_horiz(dist, roi_mat, roi_mask, 1, ybeg, yend, xbeg, xend, L_STRAIGHT);
 
 	//right to left
-	xbeg = (image->xpos + image->width - 1) - 1;
+	xbeg = (roi_mask.cols - 1) - 1;
 	xend = xl - 1;
-
-	find_distances_cycle_y_horiz(dist, mat, mask, -1, ybeg, yend, xbeg, xend, L_STRAIGHT);
+	find_distances_cycle_y_horiz(dist, roi_mat, roi_mask, -1, ybeg, yend, xbeg, xend, L_STRAIGHT);
 }
 
 void tighten() {
@@ -1417,9 +1411,9 @@ cv::Rect get_visible_rect(const cv::cuda::GpuMat &mask)
 }
 
 #ifdef NO_CUDA
-void mat2struct(int i, const std::string &filename, cv::Mat &matimage, const cv::Mat &mask, cv::Mat &dist)
+void mat2struct(int i, const std::string &filename, cv::Mat &matimage, const cv::Mat &mask)
 #else
-void mat2struct(int i, const std::string &filename, cv::cuda::GpuMat &matimage, const cv::cuda::GpuMat &mask, cv::cuda::GpuMat &dist)
+void mat2struct(int i, const std::string &filename, cv::cuda::GpuMat &matimage, const cv::cuda::GpuMat &mask)
 #endif
 {
 	#ifdef WIN32
@@ -1448,7 +1442,7 @@ void mat2struct(int i, const std::string &filename, cv::cuda::GpuMat &matimage, 
 	g_workwidth = std::max(g_workwidth, (int)(I.xpos + I.width));
 	g_workheight = std::max(g_workheight, (int)(I.ypos + I.height));
 	
-	inpaint_opencv(matimage, mask, &I, dist);
+	inpaint_opencv(matimage, mask, cv::Rect(I.xpos, I.ypos, I.width, I.height));
 
 	#ifdef NO_OPENCV
 		void* untrimmed = (void*)malloc(I.width * I.height * sizeof(uint32));
@@ -1465,11 +1459,6 @@ void mat2struct(int i, const std::string &filename, cv::cuda::GpuMat &matimage, 
 
 void load_images() {
 	char buf[256];
-	#ifdef NO_CUDA
-	cv::Mat dist(g_cvmats[0].size(), CV_32S);
-	#else
-	cv::cuda::GpuMat dist(g_cvmats[0].size(), CV_32S);
-	#endif
 
 	for (int i = 0; i < g_numimages; ++i) {
 		//cv::Mat matimage = cv::imread(argv[i], CV_LOAD_IMAGE_COLOR);
@@ -1479,7 +1468,7 @@ void load_images() {
 		#else
 		sprintf(buf, "%d/", i);
 		#endif
-		mat2struct(i, buf, g_cvmats[i], g_cvmasks[i], dist);
+		mat2struct(i, buf, g_cvmats[i], g_cvmasks[i]);
 	}
 
 	if (g_crop) tighten();
