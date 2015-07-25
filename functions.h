@@ -67,11 +67,15 @@ void inpaint8(struct_image* image, uint32* edt);
 void inpaint16(struct_image* image, uint32* edt);
 void inpaint(struct_image* image, uint32* edt);
 void tighten();
+
+#ifdef NO_CUDA
+inline int non_zero_row(const cv::Mat &mask, int y);
+inline int non_zero_col(const cv::Mat &mask, int x, int yl, int yr);
+inline int non_zero_col(const cv::Mat &mask, int x);
 int localize_xl(const cv::Mat &mask, float j0, float jstep, float left, float right);
 int localize_xr(const cv::Mat &mask, float j0, float jstep, float left, float right);
 int localize_yl(const cv::Mat &mask, float i0, float istep, float left, float right);
 int localize_yr(const cv::Mat &mask, float i0, float istep, float left, float right);
-#ifdef NO_CUDA
 void init_dist(const cv::Mat &mask, cv::Mat &dist, struct_image* image);
 void find_distances_cycle_y_horiz(
 	cv::Mat &dist, cv::Mat &mat, const cv::Mat &mask,
@@ -92,6 +96,12 @@ cv::Rect get_visible_rect(const cv::Mat &mask);
 void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, struct_image* image, cv::Mat &dist);
 void mat2struct(int i, const std::string &filename, cv::Mat &matimage, const cv::Mat &mask, cv::Mat &dist);
 #else
+inline int non_zero_row(const cv::cuda::GpuMat &mask, int y);
+inline int non_zero_col(const cv::cuda::GpuMat &mask, int x);
+int localize_xl(const cv::cuda::GpuMat &mask, float j0, float jstep, float left, float right);
+int localize_xr(const cv::cuda::GpuMat &mask, float j0, float jstep, float left, float right);
+int localize_yl(const cv::cuda::GpuMat &mask, float i0, float istep, float left, float right);
+int localize_yr(const cv::cuda::GpuMat &mask, float i0, float istep, float left, float right);
 void init_dist(const cv::cuda::GpuMat &mask, cv::cuda::GpuMat &dist, struct_image* image);
 void find_distances_cycle_y_horiz(
 	cv::cuda::GpuMat &dist, cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask,

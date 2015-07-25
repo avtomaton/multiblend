@@ -1089,60 +1089,101 @@ void tighten() {
 	g_workheight=max_bottom;
 }
 
+#ifdef NO_CUDA
+inline int non_zero_row(const cv::Mat &mask, int y)
+{
+	auto pmask = mask.ptr<uint8_t>(y);
+	for (int x = 0; x < mask.cols; ++x)
+		if (pmask[x])
+			return 1;
+	return 0;
+}
+
+inline int non_zero_col(const cv::Mat &mask, int x, int yl, int yr)
+{
+	for (int y = yl; y <= yr; ++y)
+		if (mask.at<uint8_t>(y, x))
+			return 1;
+	return 0;
+}
+
+inline int non_zero_col(const cv::Mat &mask, int x)
+{
+	for (int y = 0; y < mask.rows; ++y)
+		if (mask.at<uint8_t>(y, x))
+			return 1;
+	return 0;
+}
+
+#else
+inline int non_zero_row(const cv::cuda::GpuMat &mask, int y)
+{
+	cv::cuda::GpuMat row = mask.row(y);
+	cv::Scalar s = cv::cuda::sum(row);
+	return s[0];
+}
+
+inline int non_zero_col(const cv::cuda::GpuMat &mask, int x)
+{
+	cv::cuda::GpuMat col = mask.col(x);
+	cv::Scalar s = cv::cuda::sum(col);
+	return s[0];
+}
+#endif
+
+#ifdef NO_CUDA
 int localize_xl(const cv::Mat &mask, float j0, float jstep, float left, float right)
+#else
+int localize_xl(const cv::cuda::GpuMat &mask, float j0, float jstep, float left, float right)
+#endif
 {
 	for (float j = left + j0; j < right; j += jstep)
-	{
-		for (int i = 0; i < mask.rows; ++i)
-		{
-			if (mask.at<uint8_t>(i, (int)j))
-				return (int)j;
-		}
-	}
+		if (non_zero_col(mask, j))
+			return (int)j;
 	return (int)right;
 }
 
+#ifdef NO_CUDA
 int localize_xr(const cv::Mat &mask, float j0, float jstep, float left, float right)
+#else
+int localize_xr(const cv::cuda::GpuMat &mask, float j0, float jstep, float left, float right)
+#endif
 {
 	for (float j = right - j0; j > left; j -= jstep)
-	{
-		for (int i = 0; i < mask.rows; ++i)
-		{
-			if (mask.at<uint8_t>(i, (int)j))
-				return (int)j;
-		}
-	}
+		if (non_zero_col(mask, j))
+			return (int)j;
 	return (int)left;
 }
 
+#ifdef NO_CUDA
 int localize_yl(const cv::Mat &mask, float i0, float istep, float left, float right)
+#else
+int localize_yl(const cv::cuda::GpuMat &mask, float i0, float istep, float left, float right)
+#endif
 {
 	for (float i = left + i0; i < right; i += istep)
-	{
-		for (int j = 0; j < mask.cols; ++j)
-		{
-			if (mask.at<uint8_t>((int)i, j))
-				return (int)i;
-		}
-	}
+		if (non_zero_row(mask, i))
+			return (int)i;
 	return (int)right;
 }
 
+#ifdef NO_CUDA
 int localize_yr(const cv::Mat &mask, float i0, float istep, float left, float right)
+#else
+int localize_yr(const cv::cuda::GpuMat &mask, float i0, float istep, float left, float right)
+#endif
 {
 	for (float i = right - i0; i > left; i -= istep)
-	{
-		for (int j = 0; j < mask.cols; ++j)
-		{
-			if (mask.at<uint8_t>((int)i, j))
-				return (int)i;
-		}
-	}
+		if (non_zero_row(mask, i))
+			return (int)i;
 	return (int)left;
 }
 
 #ifdef NO_CUDA
 int search_l(const cv::Mat &mask, float left, float right, bool isy)
+#else
+int search_l(const cv::cuda::GpuMat &mask, float left, float right, bool isy)
+#endif
 {
 	int l;
 	float i0;
@@ -1178,17 +1219,12 @@ int search_l(const cv::Mat &mask, float left, float right, bool isy)
 
 	return l;
 }
-#else
-int search_l(const cv::cuda::GpuMat &mask, float left, float right, bool isy)
-{
-	printf("search_l\n");
-	exit(1);
-	return 0;
-}
-#endif
 
 #ifdef NO_CUDA
 int search_r(const cv::Mat &mask, float left, float right, bool isy)
+#else
+int search_r(const cv::cuda::GpuMat &mask, float left, float right, bool isy)
+#endif
 {
 	int r;
 	float i0;
@@ -1222,47 +1258,36 @@ int search_r(const cv::Mat &mask, float left, float right, bool isy)
 	}
 	return r;
 }
-#else
-int search_r(const cv::cuda::GpuMat &mask, float left, float right, bool isy)
-{
-	printf("search_r\n");
-	exit(1);
-	return 0;
-}
-#endif
 
 #ifdef NO_CUDA
 cv::Rect get_visible_rect(const cv::Mat &mask)
+#else
+cv::Rect get_visible_rect(const cv::cuda::GpuMat &mask)
+#endif
 {
 	int xl = mask.cols, yl = mask.rows, xr = -1, yr = -1;
 	
 	int boundary_strip = 2;
 	float left, right;
 	//try top boundary
-	for (int i = 0; i < boundary_strip && i < mask.rows; ++i)
+	for (int i = 0; i < boundary_strip; ++i)
 	{
-		for (int j = 0; j < mask.cols; ++j)
-		{
-			if (mask.at<uint8_t>(i, j))
-			{
-				yl = i;
-				i = mask.rows;
-				break;
-			}
-		}
+		 if (non_zero_row(mask, i))
+		 {
+			 yl = i;
+			 i = mask.rows;
+			 break;
+		 }
 	}
 
 	//try bottom boundary
-	for (int i = mask.rows - 1; (i >= mask.rows - boundary_strip) && (i >= 0); --i)
+	for (int i = mask.rows - 1; i >= mask.rows - boundary_strip; --i)
 	{
-		for (int j = 0; j < mask.cols; ++j)
+		if (non_zero_row(mask, i))
 		{
-			if (mask.at<uint8_t>(i, j))
-			{
-				yr = i;
-				i = - 1;
-				break;
-			}
+			yr = i;
+			i = - 1;
+			break;
 		}
 	}
 
@@ -1287,30 +1312,32 @@ cv::Rect get_visible_rect(const cv::Mat &mask)
 	}
 
 	//try left boundary
-	for (int j = 0; j < boundary_strip && j < mask.cols; ++j)
-	{
-		for (int i = yl; i <= yr; ++i)
+	for (int j = 0; j < boundary_strip; ++j)
+	{	
+		#ifdef NO_CUDA
+		if (non_zero_col(mask, j, yl, yr))
+		#else
+		if (non_zero_col(mask, j))
+		#endif
 		{
-			if (mask.at<uint8_t>(i, j))
-			{
-				xl = j;
-				j = mask.cols;
-				break;
-			}
+			xl = j;
+			j = mask.cols;
+			break;
 		}
 	}
 
 	//try right boundary
-	for (int j = mask.cols - 1; j >= mask.cols - boundary_strip && j >= 0; --j)
+	for (int j = mask.cols - 1; j >= mask.cols - boundary_strip; --j)
 	{
-		for (int i = yl; i <= yr; ++i)
+		#ifdef NO_CUDA
+		if (non_zero_col(mask, j, yl, yr))
+		#else
+		if (non_zero_col(mask, j))
+		#endif
 		{
-			if (mask.at<uint8_t>(i, j))
-			{
-				xr = j;
-				j = - 1;
-				break;
-			}
+			xr = j;
+			j = - 1;
+			break;
 		}
 	}
 
@@ -1323,6 +1350,7 @@ cv::Rect get_visible_rect(const cv::Mat &mask)
 		if (xl == mask.cols)
 			die("xl == mask.cols: no visible pixels");
 	}
+
 	if (xr == -1)
 	{
 		//right
@@ -1332,6 +1360,7 @@ cv::Rect get_visible_rect(const cv::Mat &mask)
 		if (xr == -1)
 			die("xr == -1: no visible pixels");
 	}
+
 	/*
 	int xl2 = mask.cols, yl2 = mask.rows, xr2 = -1, yr2 = -1;
 	for (int i = 0; i < mask.rows; ++i)
@@ -1368,15 +1397,6 @@ cv::Rect get_visible_rect(const cv::Mat &mask)
 	res.height = yr - yl + 1;
 	return res;
 }
-#else
-cv::Rect get_visible_rect(const cv::cuda::GpuMat &mask)
-{
-	cv::Rect res;
-	printf("get_visible_rect(cuda)\n");
-	exit(1);
-	return res;
-}
-#endif
 
 #ifdef NO_CUDA
 void mat2struct(int i, const std::string &filename, cv::Mat &matimage, const cv::Mat &mask, cv::Mat &dist)
