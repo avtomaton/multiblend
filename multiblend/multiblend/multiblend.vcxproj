@@ -50,7 +50,7 @@
     <ClInclude Include="..\..\structs.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\cuda-functions.cu" />
+    <CudaCompile Include="..\..\cuda-functions.cu" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{BF5A13EA-84E1-49B5-BCB4-24E6441A2BDE}</ProjectGuid>
@@ -216,7 +216,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NO_CUDA;IS_APPLICATION;WIN32;NDEBUG;TIFF_LIBRARY;_CRT_SECURE_NO_WARNINGS;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>IS_APPLICATION;WIN32;NDEBUG;TIFF_LIBRARY;_CRT_SECURE_NO_WARNINGS;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>

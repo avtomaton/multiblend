@@ -5,6 +5,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+//#include <opencv2/cudaarithm.hpp>
 
 void clear_temp() {
 	int i, c;

@@ -2,7 +2,7 @@
 #include "globals.h"
 #include "functions.h"
 #include "defines.h"
-
+#include "cuda-functions.h"
 #include <algorithm>
 
 #include <opencv2/cudaarithm.hpp>
@@ -950,8 +950,6 @@ inline void find_distances_cycle_x(
 				pnums[x] = pnums_prev[x + 1];
 			}
 		}
-
-
 	}
 }
 #else
@@ -960,6 +958,7 @@ inline void find_distances_cycle_x(
 	int tmp_xbeg, int tmp_xend,
 	int l_straight, int l_diag)
 {
+	cuda_find_distances_cycle_x(pmask, pdist, pdist_prev, pnums, pnums_prev, tmp_xbeg, tmp_xend, l_straight, l_diag);
 	printf("find_distances_cycle_x(cuda)\n");
 	exit(1);
 }
@@ -1416,7 +1415,7 @@ cv::Rect get_visible_rect(const cv::cuda::GpuMat &mask)
 #ifdef NO_CUDA
 void mat2struct(int i, const std::string &filename, cv::Mat &matimage, const cv::Mat &mask)
 #else
-void mat2struct(int i, const std::string &filename, cv::cuda::GpuMat &matimage, const cv::cuda::GpuMat &mask)
+void mat2struct(int i, const std::string &filename, std::vector<cv::cuda::GpuMat> &matimages, const cv::cuda::GpuMat &mask)
 #endif
 {
 	#ifdef WIN32
@@ -1445,7 +1444,12 @@ void mat2struct(int i, const std::string &filename, cv::cuda::GpuMat &matimage, 
 	g_workwidth = std::max(g_workwidth, (int)(I.xpos + I.width));
 	g_workheight = std::max(g_workheight, (int)(I.ypos + I.height));
 	
+	#ifdef NO_CUDA
 	inpaint_opencv(matimage, mask, cv::Rect(I.xpos, I.ypos, I.width, I.height));
+	#else
+	for (int c = 0; c < 3; ++c)
+		inpaint_opencv(matimages[c], mask, cv::Rect(I.xpos, I.ypos, I.width, I.height));
+	#endif
 
 	#ifdef NO_OPENCV
 		void* untrimmed = (void*)malloc(I.width * I.height * sizeof(uint32));
@@ -1471,7 +1475,11 @@ void load_images() {
 		#else
 		sprintf(buf, "%d/", i);
 		#endif
+		#ifdef NO_CUDA
 		mat2struct(i, buf, g_cvmats[i], g_cvmasks[i]);
+		#else
+		mat2struct(i, buf, g_cvchannels[i], g_cvmasks[i]);
+		#endif
 	}
 
 	if (g_crop) tighten();

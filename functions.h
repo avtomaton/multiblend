@@ -7,7 +7,7 @@
 #include "structs.h"
 
 #include <opencv2/core/core.hpp>
-#include <opencv2/cudaarithm.hpp>
+
 
 #define L_STRAIGHT 2
 #define L_DIAG 3
@@ -117,7 +117,7 @@ int search_l(const cv::cuda::GpuMat &mask, float left, float right, bool isy);
 int search_r(const cv::cuda::GpuMat &mask, float left, float right, bool isy);
 cv::Rect get_visible_rect(const cv::cuda::GpuMat &mask);
 void inpaint_opencv(cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask, const cv::Rect &rect);
-void mat2struct(int i, const std::string &filename, cv::cuda::GpuMat &matimage, const cv::cuda::GpuMat &mask, cv::cuda::GpuMat &dist);
+void mat2struct(int i, const std::string &filename, std::vector<cv::cuda::GpuMat> &matimages, const cv::cuda::GpuMat &mask, cv::cuda::GpuMat &dist);
 #endif
 void load_images();
 

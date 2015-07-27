@@ -2,6 +2,79 @@
 
 #include <cuda_runtime.h>
 
+//helpers
+static int calc_drid_dim(int array_size, int block_size)
+{
+	return array_size / block_size + 1;
+}
+
+
+__global__ void kernel_find_distances_cycle_x(int l_straight, int l_diag, int size)
+{
+	/*size_t pt_index = blockIdx.x * blockDim.x + threadIdx.x;
+
+	for (int x = tmp_xbeg; x < tmp_xbeg + size; ++x)
+	{
+		if (pmask[x] || pdist[x] == 0)
+			continue;
+
+		if (pdist_prev[x] + l_straight < pdist[x])
+		{
+			pdist[x] = pdist_prev[x] + l_straight;
+			pnums[x] = pnums_prev[x];
+		}
+
+		if (x != tmp_xbeg)
+		{
+			if (pdist_prev[x - 1] + l_diag < pdist[x])
+			{
+				pdist[x] = pdist_prev[x - 1] + l_diag;
+				pnums[x] = pnums_prev[x - 1];
+			}
+		}
+
+		if (x != (tmp_xend - 1))
+		{
+			if (pdist_prev[x + 1] + l_diag < pdist[x])
+			{
+				pdist[x] = pdist_prev[x + 1] + l_diag;
+				pnums[x] = pnums_prev[x + 1];
+			}
+		}
+	}*/
+}
+
+
+void cuda_find_distances_cycle_x(
+	const uint8_t *pmask, float *pdist, float *pdist_prev, cv::Vec3b *pnums, cv::Vec3b *pnums_prev,
+	int tmp_xbeg, int tmp_xend,
+	int l_straight, int l_diag)
+{
+	int size = tmp_xend - tmp_xbeg;
+	
+	int nthreads = 256;
+	dim3 block_dim(nthreads, 1);
+	dim3 grid_dim(calc_drid_dim(size, block_dim.x * block_dim.y), 1);
+	
+	const uint8_t *pmask_beg;
+	float *pdist_beg;
+	float *pdist_prev_beg;
+	cv::Vec3b *pnums_beg;
+	cv::Vec3b *pnums_prev_beg;
+
+	cudaEvent_t start, kernel;
+	cudaEventCreate(&start);
+	cudaEventCreate(&kernel);
+	cudaEventRecord(start, 0);
+	kernel_find_distances_cycle_x<<<grid_dim, block_dim>>>(l_straight, l_diag, size);
+	cudaEventRecord(kernel, 0);
+	cudaEventSynchronize(kernel);
+
+	float time_kernel;
+	cudaEventElapsedTime(&time_kernel, start, kernel);
+	printf("cuda time_kernel: %f ms\n", time_kernel);
+}
+
 /*
 __device__ __constant__ int MAXITER = 100;
 __device__ __constant__ real_t M_PI_DEG = 180.0f;
@@ -39,24 +112,6 @@ __global__ void kernel_init_mat(const diy::Point *map, diy::Point *ocv_map, size
 		pt_index += blockDim.x * gridDim.x;
 	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 static inline int func_finalize(void *stream)
 {
