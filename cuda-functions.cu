@@ -1,6 +1,137 @@
 #include "cuda-functions.h"
 #ifndef NO_CUDA
 #include <cuda_runtime.h>
+#include <opencv2/cudaarithm.hpp>
+
+//helpers
+static int calc_drid_dim(int array_size, int block_size)
+{
+	return (array_size - 1) / block_size + 1;
+}
+
+__global__ void kernel_find_distances_cycle_y_horiz(cv::cuda::PtrStep<float> ptr_dist, cv::cuda::PtrStep<uint8_t> ptr_mat, cv::cuda::PtrStep<uint8_t> ptr_mask, int shift, int ybeg, int size, int xbeg, int xend, int l_straight)
+{
+	size_t y = blockIdx.x * blockDim.x + threadIdx.x + ybeg;
+	
+	if (y >= ybeg + size)
+		return;
+
+	auto pdist = ptr_dist.ptr(y);
+	auto pmat = ptr_mat.ptr(y);
+	auto pmask = ptr_mask.ptr(y);
+
+	int x = xbeg;
+	while (x != xend)
+	{
+		if (pmask[x])
+		{
+			x += shift;
+			continue;
+		}
+		if (pdist[x - shift] + l_straight < pdist[x])
+		{
+			pdist[x] = pdist[x - shift] + l_straight;
+			pmat[x] = pmat[x - shift];
+		}
+		x += shift;
+	}
+}
+
+__global__ void kernel_find_distances_cycle_x(float *pdist, uint8_t *pnums, const uint8_t *pmask, const float *pdist_prev, const uint8_t *pnums_prev, int l_straight, int l_diag, int size)
+{
+	size_t x = blockIdx.x * blockDim.x + threadIdx.x;
+
+	if (x >= size || pmask[x] || pdist[x] == 0)
+		return;
+
+	if (pdist_prev[x] + l_straight < pdist[x])
+	{
+		pdist[x] = pdist_prev[x] + l_straight;
+		pnums[x] = pnums_prev[x];
+	}
+
+	if (x != 0)
+	{
+		if (pdist_prev[x - 1] + l_diag < pdist[x])
+		{
+			pdist[x] = pdist_prev[x - 1] + l_diag;
+			pnums[x] = pnums_prev[x - 1];
+		}
+	}
+
+	if (x != (size - 1))
+	{
+		if (pdist_prev[x + 1] + l_diag < pdist[x])
+		{
+			pdist[x] = pdist_prev[x + 1] + l_diag;
+			pnums[x] = pnums_prev[x + 1];
+		}
+	}
+}
+
+
+
+void cuda_find_distances_cycle_y_horiz(
+	cv::cuda::GpuMat &dist, cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask,
+	int shift, int ybeg, int yend, int xbeg, int xend,
+	int l_straight)
+{
+	int size = yend - ybeg;
+	if (size < 1)
+		return;
+
+	int nthreads = 256;
+	dim3 block_dim(nthreads, 1);
+	dim3 grid_dim(calc_drid_dim(size, block_dim.x * block_dim.y), 1);
+
+	cv::cuda::PtrStep<float> ptr_dist = dist;
+	cv::cuda::PtrStep<uint8_t> ptr_mat = mat;
+	cv::cuda::PtrStep<uint8_t> ptr_mask = mask;
+
+	/*cudaEvent_t start, kernel;
+	cudaEventCreate(&start);
+	cudaEventCreate(&kernel);
+	cudaEventRecord(start, 0);*/
+	kernel_find_distances_cycle_y_horiz <<<grid_dim, block_dim >>>(ptr_dist, ptr_mat, ptr_mask, shift, ybeg, size, xbeg, xend, l_straight);
+	/*cudaEventRecord(kernel, 0);
+	cudaEventSynchronize(kernel);
+
+	float time_kernel;
+	cudaEventElapsedTime(&time_kernel, start, kernel);
+	printf("cuda time_kernel: %f ms\n", time_kernel);*/
+}
+
+void cuda_find_distances_cycle_x(
+	const uint8_t *pmask, float *pdist, const float *pdist_prev, uint8_t *pnums, const uint8_t *pnums_prev,
+	int tmp_xbeg, int tmp_xend,
+	int l_straight, int l_diag)
+{
+	int size = tmp_xend - tmp_xbeg;
+	if (size < 1)
+		return;
+
+	int nthreads = 256;
+	dim3 block_dim(nthreads, 1);
+	dim3 grid_dim(calc_drid_dim(size, block_dim.x * block_dim.y), 1);
+	
+	float *pdist_beg = pdist + tmp_xbeg;
+	uint8_t *pnums_beg = pnums + tmp_xbeg;
+	const uint8_t *pmask_beg = pmask + tmp_xbeg;
+	const float *pdist_prev_beg = pdist_prev + tmp_xbeg;
+	const uint8_t *pnums_prev_beg = pnums_prev + tmp_xbeg;
+
+	/*cudaEvent_t start, kernel;
+	cudaEventCreate(&start);
+	cudaEventCreate(&kernel);
+	cudaEventRecord(start, 0);*/
+	kernel_find_distances_cycle_x<<<grid_dim, block_dim>>>(pdist_beg, pnums_beg, pmask_beg, pdist_prev_beg, pnums_prev_beg, l_straight, l_diag, size);
+	/*cudaEventRecord(kernel, 0);
+	cudaEventSynchronize(kernel);
+
+	float time_kernel;
+	cudaEventElapsedTime(&time_kernel, start, kernel);
+	printf("cuda time_kernel: %f ms\n", time_kernel);*/
+}
 
 /*
 __device__ __constant__ int MAXITER = 100;
@@ -39,24 +170,6 @@ __global__ void kernel_init_mat(const diy::Point *map, diy::Point *ocv_map, size
 		pt_index += blockDim.x * gridDim.x;
 	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 static inline int func_finalize(void *stream)
 {

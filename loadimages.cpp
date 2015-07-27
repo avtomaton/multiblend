@@ -2,7 +2,7 @@
 #include "globals.h"
 #include "functions.h"
 #include "defines.h"
-
+#include "cuda-functions.h"
 #include <algorithm>
 
 #include <opencv2/cudaarithm.hpp>
@@ -876,6 +876,7 @@ void init_dist(const cv::cuda::GpuMat &mask, cv::cuda::GpuMat &dist)
 	//mask.convertTo(dist, CV_32F);
 	//cv::threshold(dist, dist, 127, max_dist, CV_THRESH_BINARY_INV);
 	dist = cv::Mat(mask.size(), CV_32F);
+
 	for (int y = 0; y < mask.rows; ++y)
 	{
 		auto pmask = mask.ptr<uint8_t>(y);
@@ -931,14 +932,13 @@ void find_distances_cycle_y_horiz(
 	int shift, int ybeg, int yend, int xbeg, int xend,
 	int l_straight)
 {
-	printf("find_distances_cycle_y_horiz(cuda)\n");
-	exit(1);
+	cuda_find_distances_cycle_y_horiz(dist, mat, mask, shift, ybeg, yend, xbeg, xend, l_straight);
 }
 #endif
 
 #ifdef NO_CUDA
 inline void find_distances_cycle_x(
-	const uint8_t *pmask, float *pdist, float *pdist_prev, cv::Vec3b *pnums, cv::Vec3b *pnums_prev,
+	const uint8_t *pmask, float *pdist, const float *pdist_prev, cv::Vec3b *pnums, const cv::Vec3b *pnums_prev,
 	int tmp_xbeg, int tmp_xend,
 	int l_straight, int l_diag)
 {
@@ -972,18 +972,15 @@ inline void find_distances_cycle_x(
 				pnums[x] = pnums_prev[x + 1];
 			}
 		}
-
-
 	}
 }
 #else
 inline void find_distances_cycle_x(
-	const uint8_t *pmask, float *pdist, float *pdist_prev, cv::Vec3b *pnums, cv::Vec3b *pnums_prev,
+	const uint8_t *pmask, float *pdist, const float *pdist_prev, uint8_t *pnums, const uint8_t *pnums_prev,
 	int tmp_xbeg, int tmp_xend,
 	int l_straight, int l_diag)
 {
-	printf("find_distances_cycle_x(cuda)\n");
-	exit(1);
+	cuda_find_distances_cycle_x(pmask, pdist, pdist_prev, pnums, pnums_prev, tmp_xbeg, tmp_xend, l_straight, l_diag);
 }
 #endif
 
@@ -1002,17 +999,24 @@ void find_distances_cycle_y_vert(
 #endif
 {
 	Proftimer proftimer(&mprofiler, "find_distances_cycle_y_vert");
-
 	auto pdist_prev = dist.ptr<float>(ybeg - shift);
+	#ifdef NO_CUDA
 	auto pmat_prev = mat.ptr<cv::Vec3b>(ybeg - shift);
+	#else
+	auto pmat_prev = mat.ptr<uint8_t>(ybeg - shift);
+	#endif
 
 	int y = ybeg;
 	while (y != yend)
 	{
-		auto pdist = dist.ptr<float>(y);
-		auto pmat = mat.ptr<cv::Vec3b>(y);
 		auto pmask = mask.ptr<uint8_t>(y);
-
+		auto pdist = dist.ptr<float>(y);
+		#ifdef NO_CUDA
+		auto pmat = mat.ptr<cv::Vec3b>(y);
+		#else
+		auto pmat = mat.ptr<uint8_t>(y);
+		#endif
+		
 		if (two_areas)
 		{
 			find_distances_cycle_x(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xr, l_straight, l_diag);
@@ -1090,6 +1094,10 @@ void inpaint_opencv(cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask, const c
 	xbeg = (roi_mask.cols - 1) - 1;
 	xend = xl - 1;
 	find_distances_cycle_y_horiz(dist, roi_mat, roi_mask, -1, ybeg, yend, xbeg, xend, L_STRAIGHT);
+
+	//cv::Mat out;
+	//mat.download(out);
+	//cv::imwrite("y_horiz.png", out);
 }
 
 void tighten() {
@@ -1445,7 +1453,7 @@ cv::Rect get_visible_rect(const cv::cuda::GpuMat &mask)
 #ifdef NO_CUDA
 void mat2struct(int i, const std::string &filename, cv::Mat &matimage, const cv::Mat &mask)
 #else
-void mat2struct(int i, const std::string &filename, cv::cuda::GpuMat &matimage, const cv::cuda::GpuMat &mask)
+void mat2struct(int i, const std::string &filename, std::vector<cv::cuda::GpuMat> &matimages, const cv::cuda::GpuMat &mask)
 #endif
 {
 	Proftimer proftimer_mat2struct(&mprofiler, "mat2struct");
@@ -1476,7 +1484,12 @@ void mat2struct(int i, const std::string &filename, cv::cuda::GpuMat &matimage, 
 	g_workwidth = std::max(g_workwidth, (int)(I.xpos + I.width));
 	g_workheight = std::max(g_workheight, (int)(I.ypos + I.height));
 	
+	#ifdef NO_CUDA
 	inpaint_opencv(matimage, mask, cv::Rect(I.xpos, I.ypos, I.width, I.height));
+	#else
+	for (int c = 0; c < 3; ++c)
+		inpaint_opencv(matimages[c], mask, cv::Rect(I.xpos, I.ypos, I.width, I.height));
+	#endif
 
 	#ifdef NO_OPENCV
 		void* untrimmed = (void*)malloc(I.width * I.height * sizeof(uint32));
@@ -1505,7 +1518,11 @@ void load_images() {
 		#else
 		sprintf(buf, "%d/", i);
 		#endif
+		#ifdef NO_CUDA
 		mat2struct(i, buf, g_cvmats[i], g_cvmasks[i]);
+		#else
+		mat2struct(i, buf, g_cvchannels[i], g_cvmasks[i]);
+		#endif
 	}
 
 	if (g_crop) tighten();

@@ -7,7 +7,7 @@
 #include "structs.h"
 
 #include <opencv2/core/core.hpp>
-#include <opencv2/cudaarithm.hpp>
+
 
 #define L_STRAIGHT 2
 #define L_DIAG 3
@@ -73,7 +73,7 @@ void find_distances_cycle_y_horiz(
 	int shift, int ybeg, int yend, int xbeg, int xend,
 	int l_straight);
 inline void find_distances_cycle_x(
-	const uint8_t *pmask, float *pdist, float *pdist_prev, cv::Vec3b *pnums, cv::Vec3b *pnums_prev,
+	const uint8_t *pmask, float *pdist, const float *pdist_prev, cv::Vec3b *pnums, const cv::Vec3b *pnums_prev,
 	int tmp_xbeg, int tmp_xend,
 	int l_straight, int l_diag);
 void find_distances_cycle_y_vert(
@@ -100,7 +100,7 @@ void find_distances_cycle_y_horiz(
 	int shift, int ybeg, int yend, int xbeg, int xend,
 	int l_straight);
 inline void find_distances_cycle_x(
-	const uint8_t *pmask, float *pdist, float *pdist_prev, cv::Vec3b *pnums, cv::Vec3b *pnums_prev,
+	const uint8_t *pmask, float *pdist, const float *pdist_prev, cv::Vec3b *pnums, const cv::Vec3b *pnums_prev,
 	int tmp_xbeg, int tmp_xend,
 	int l_straight, int l_diag);
 void find_distances_cycle_y_vert(
@@ -112,7 +112,7 @@ int search_l(const cv::cuda::GpuMat &mask, float left, float right, bool isy);
 int search_r(const cv::cuda::GpuMat &mask, float left, float right, bool isy);
 cv::Rect get_visible_rect(const cv::cuda::GpuMat &mask);
 void inpaint_opencv(cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask, const cv::Rect &rect);
-void mat2struct(int i, const std::string &filename, cv::cuda::GpuMat &matimage, const cv::cuda::GpuMat &mask, cv::cuda::GpuMat &dist);
+void mat2struct(int i, const std::string &filename, std::vector<cv::cuda::GpuMat> &matimages, const cv::cuda::GpuMat &mask, cv::cuda::GpuMat &dist);
 #endif
 void load_images();
 

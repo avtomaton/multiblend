@@ -81,8 +81,8 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\cuda-functions.cu">
+    <CudaCompile Include="..\..\cuda-functions.cu">
       <Filter>Resource Files</Filter>
-    </None>
+    </CudaCompile>
   </ItemGroup>
 </Project>

@@ -79,7 +79,7 @@ extern cv::cuda::GpuMat g_cvseams;
 extern cv::cuda::GpuMat g_cvoutmask;
 extern std::vector<std::vector<cv::cuda::GpuMat> > g_cvmaskpyramids;
 extern std::vector<cv::cuda::GpuMat> g_cvmatpyramids;
-extern std::vector<cv::cuda::GpuMat> g_cvmats;
+extern std::vector<std::vector<cv::cuda::GpuMat> > g_cvchannels;
 extern std::vector<cv::cuda::GpuMat> g_cvmasks;
 extern std::vector<cv::cuda::GpuMat> g_cvoutput_pyramid;
 #endif
