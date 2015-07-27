@@ -220,11 +220,11 @@ int main()
 		cv::cuda::GpuMat cuda_cvoutmask;
 	#endif
 
-	int K = 2;
+	int K = 1;
 	std::vector<std::string> base_name(K);
 	base_name[0] = "000000001";
-	base_name[1] = "000000021";
-	/*base_name[2] = "000000031";
+	/*base_name[1] = "000000021";
+	base_name[2] = "000000031";
 	base_name[3] = "000000041";
 	base_name[4] = "000000051";
 	base_name[5] = "000000061";

@@ -96,27 +96,3 @@ void die(const char* error, ...) {
 
 	exit(1);
 }
-#ifdef NO_CUDA
-bool is_two_areas(const cv::Mat &mask, struct_image* image)
-{
-	bool two_areas = true;
-	for (int y = image->ypos; y < (image->ypos + image->height); ++y)
-	{
-		int x = image->xpos + image->width / 2;
-		if (mask.at<uint8_t>(y, x))
-		{
-			two_areas = false;
-			break;
-		}
-	}
-	return two_areas;
-}
-#else
-bool is_two_areas(const cv::cuda::GpuMat &mask, struct_image* image)
-{
-	bool two_areas = true;
-	printf("is_two_areas(cuda)\n");
-	exit(1);
-	return two_areas;
-}
-#endif

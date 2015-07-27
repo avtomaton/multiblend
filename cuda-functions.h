@@ -4,8 +4,9 @@
 #ifndef NO_CUDA
 
 #include "data-types.h"
-#include <opencv2/core/core.hpp>
 
+#include <opencv2/core/core.hpp>
+/*
 void cuda_init();
 void* cuda_stream_create();
 void cuda_stream_destroy(void* stream);
@@ -25,7 +26,7 @@ int cuda_simple_test(diy::Point *points, int size, void *stream);
 int cuda_init_mat(
 	const diy::Point *map, diy::Point *ocv_map,
 	size_t rows, size_t cols, int channels, real_t finish_cx, real_t finish_cy);
-
+*/
 #endif
 
 #endif //CUDA_FUNCTIONS_H
