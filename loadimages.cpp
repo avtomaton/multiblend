@@ -853,13 +853,11 @@ void init_dist(const cv::cuda::GpuMat &mask, cv::cuda::GpuMat &dist)
 #endif
 {
 	int max_dist = 2 * (mask.rows + mask.cols);
-	mask.convertTo(dist, CV_32F);
+	
 	#ifdef NO_CUDA
-	cv::threshold(dist, dist, 127, max_dist, CV_THRESH_BINARY_INV);
-	#else
-	cv::cuda::threshold(dist, dist, 127, max_dist, CV_THRESH_BINARY_INV);
-	#endif
-	/*dist = cv::Mat(mask.size(), CV_32F);
+	//mask.convertTo(dist, CV_32F);
+	//cv::threshold(dist, dist, 127, max_dist, CV_THRESH_BINARY_INV);
+	dist = cv::Mat(mask.size(), CV_32F);
 	for (int y = 0; y < mask.rows; ++y)
 	{
 		auto pmask = mask.ptr<uint8_t>(y);
@@ -871,7 +869,12 @@ void init_dist(const cv::cuda::GpuMat &mask, cv::cuda::GpuMat &dist)
 			else
 				pdist[x] = max_dist;
 		}
-	}*/
+	}
+	#else
+	mask.convertTo(dist, CV_32F);
+	cv::cuda::threshold(dist, dist, 127, max_dist, CV_THRESH_BINARY_INV);
+	#endif
+
 }
 
 #ifdef NO_CUDA
