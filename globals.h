@@ -4,6 +4,9 @@
 #include "structs.h"
 #include <opencv2/cudaarithm.hpp>
 
+typedef uint8_t mask_t;
+extern int max_mask_value;
+
 extern void* g_line0;
 extern void* g_line1;
 extern void* g_line2;
@@ -79,6 +82,8 @@ extern std::vector<cv::cuda::GpuMat> g_cvmatpyramids;
 extern std::vector<std::vector<cv::cuda::GpuMat> > g_cvchannels;
 extern std::vector<cv::cuda::GpuMat> g_cvmasks;
 extern std::vector<cv::cuda::GpuMat> g_cvoutput_pyramid;
+extern std::vector<cv::Size> g_offsets;
+extern std::vector<cv::Size> g_sizes;
 #endif
 extern cv::Mat g_cvout;
 

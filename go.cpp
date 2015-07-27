@@ -21,7 +21,11 @@ void go() {
 			#endif
 		}
 	}
-	g_numimages = (int)g_cvmasks.size();
+	#ifdef NO_CUDA
+	g_numimages = (int)g_cvmats.size();
+	#else
+	g_numimages = (int)g_cvchannels.size();
+	#endif
 
 	if (g_numimages == 1 && g_caching) {
 		output(1,"Only one input image; caching disabled\n");
@@ -29,14 +33,6 @@ void go() {
 	}
 
 	timer.set();
-
-	#ifdef NO_CUDA
-	if (g_cvmats.size() != g_cvmasks.size())
-		die("g_cvmats.size() != g_cvmasks.size()");
-	#else
-	if (g_cvchannels.size() != g_cvmasks.size())
-		die("g_cvchannels.size() != g_cvmasks.size()");
-	#endif
 
 	g_images = (struct_image*)malloc(g_numimages*sizeof(struct_image));
 

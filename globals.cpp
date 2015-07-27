@@ -1,5 +1,7 @@
 #include "globals.h"
 
+int max_mask_value = 255;
+
 void* g_line0 = NULL;
 void* g_line1 = NULL;
 void* g_line2 = NULL;
@@ -83,5 +85,7 @@ std::vector<cv::cuda::GpuMat> g_cvmatpyramids;
 std::vector<std::vector<cv::cuda::GpuMat> > g_cvchannels;
 std::vector<cv::cuda::GpuMat> g_cvmasks;
 std::vector<cv::cuda::GpuMat> g_cvoutput_pyramid;
+std::vector<cv::Size> g_offsets;
+std::vector<cv::Size> g_sizes;
 #endif
 cv::Mat g_cvout;

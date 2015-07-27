@@ -85,6 +85,7 @@ int multiblend(const std::string &inputstring, std::vector<std::vector<cv::cuda:
 	#endif
 
 	g_cvmasks = masks;
+	masks.clear();
 	g_cvmaskpyramids = cvmaskpyramids;
 	g_cvoutmask = cvoutmask;
 
@@ -259,6 +260,8 @@ int main()
 				cv::cuda::split(cuda_mat, cuda_channels[i]);
 
 				cuda_masks[i].upload(masks[i]);
+				printf("allocate cuda_channels[%d](%d x %d x 3) = %f MB\n", i, cuda_channels[i][0].cols, cuda_channels[i][0].rows, cuda_channels[i][0].cols * cuda_channels[i][0].rows * 3 * sizeof(uint8_t) / (1024.0 * 1024.0));
+				printf("allocate cuda_masks[%d](%d x %d) = %f MB\n", i, cuda_masks[i].cols, cuda_masks[i].rows, cuda_masks[i].cols * cuda_masks[i].rows * sizeof(uint8_t) / (1024.0 * 1024.0));
 			}
 			multiblend(inputstring, cuda_channels, cuda_masks, cuda_cvmaskpyramids, cuda_cvoutmask);
 		#endif

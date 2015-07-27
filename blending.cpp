@@ -823,19 +823,19 @@ void mask_into_output_opencv(int i, int l, bool first)
 
 	for (int y = y_extra0; y < ylim; ++y)
 	{
-		const cv::Vec3s *pmat = g_cvmatpyramids[l].ptr<cv::Vec3s>(y);
-		cv::Vec3s *pout = PY(i, l).x0 + g_cvoutput_pyramid[l].ptr<cv::Vec3s>(y + PY(i, l).y0);
-		float *pmask = PY(i, l).x0 + g_cvmaskpyramids[i][l].ptr<float>(y + PY(i, l).y0);
+		auto pmat = g_cvmatpyramids[l].ptr<cv::Vec3s>(y);
+		auto pout = PY(i, l).x0 + g_cvoutput_pyramid[l].ptr<cv::Vec3s>(y + PY(i, l).y0);
+		auto pmask = PY(i, l).x0 + g_cvmaskpyramids[i][l].ptr<mask_t>(y + PY(i, l).y0);
 		for (int x = x_extra0; x < xlim; ++x)
 		{
-			if (pmask[x] == 0.0f)
+			if (pmask[x] == 0)
 				continue;
-			else if (pmask[x] == 1.0f)
+			else if (pmask[x] == max_mask_value)
 				pout[x] = pmat[x];
 			else
 			{
 				for (int c = 0; c < 3; ++c)
-					pout[x][c] += (int)(pmask[x] * pmat[x][c] + 0.5);
+					pout[x][c] += (int)((float)pmask[x] * pmat[x][c] / max_mask_value + 0.5);
 			}
 		}
 	}
