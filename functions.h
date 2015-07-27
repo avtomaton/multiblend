@@ -78,7 +78,7 @@ void find_distances_cycle_y_horiz(
 	int shift, int ybeg, int yend, int xbeg, int xend,
 	int l_straight);
 inline void find_distances_cycle_x(
-	const uint8_t *pmask, float *pdist, float *pdist_prev, cv::Vec3b *pnums, cv::Vec3b *pnums_prev,
+	const uint8_t *pmask, float *pdist, const float *pdist_prev, cv::Vec3b *pnums, const cv::Vec3b *pnums_prev,
 	int tmp_xbeg, int tmp_xend,
 	int l_straight, int l_diag);
 void find_distances_cycle_y_vert(
@@ -105,7 +105,7 @@ void find_distances_cycle_y_horiz(
 	int shift, int ybeg, int yend, int xbeg, int xend,
 	int l_straight);
 inline void find_distances_cycle_x(
-	const uint8_t *pmask, float *pdist, float *pdist_prev, cv::Vec3b *pnums, cv::Vec3b *pnums_prev,
+	const uint8_t *pmask, float *pdist, const float *pdist_prev, cv::Vec3b *pnums, const cv::Vec3b *pnums_prev,
 	int tmp_xbeg, int tmp_xend,
 	int l_straight, int l_diag);
 void find_distances_cycle_y_vert(

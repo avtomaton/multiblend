@@ -911,14 +911,13 @@ void find_distances_cycle_y_horiz(
 	int shift, int ybeg, int yend, int xbeg, int xend,
 	int l_straight)
 {
-	printf("find_distances_cycle_y_horiz(cuda)\n");
-	exit(1);
+	cuda_find_distances_cycle_y_horiz(dist, mat, mask, shift, ybeg, yend, xbeg, xend, l_straight);
 }
 #endif
 
 #ifdef NO_CUDA
 inline void find_distances_cycle_x(
-	const uint8_t *pmask, float *pdist, float *pdist_prev, cv::Vec3b *pnums, cv::Vec3b *pnums_prev,
+	const uint8_t *pmask, float *pdist, const float *pdist_prev, cv::Vec3b *pnums, const cv::Vec3b *pnums_prev,
 	int tmp_xbeg, int tmp_xend,
 	int l_straight, int l_diag)
 {
@@ -954,13 +953,11 @@ inline void find_distances_cycle_x(
 }
 #else
 inline void find_distances_cycle_x(
-	const uint8_t *pmask, float *pdist, float *pdist_prev, cv::Vec3b *pnums, cv::Vec3b *pnums_prev,
+	const uint8_t *pmask, float *pdist, const float *pdist_prev, uint8_t *pnums, const uint8_t *pnums_prev,
 	int tmp_xbeg, int tmp_xend,
 	int l_straight, int l_diag)
 {
 	cuda_find_distances_cycle_x(pmask, pdist, pdist_prev, pnums, pnums_prev, tmp_xbeg, tmp_xend, l_straight, l_diag);
-	printf("find_distances_cycle_x(cuda)\n");
-	exit(1);
 }
 #endif
 
@@ -979,15 +976,23 @@ void find_distances_cycle_y_vert(
 #endif
 {
 	auto pdist_prev = dist.ptr<float>(ybeg - shift);
+	#ifdef NO_CUDA
 	auto pmat_prev = mat.ptr<cv::Vec3b>(ybeg - shift);
+	#else
+	auto pmat_prev = mat.ptr<uint8_t>(ybeg - shift);
+	#endif
 
 	int y = ybeg;
 	while (y != yend)
 	{
-		auto pdist = dist.ptr<float>(y);
-		auto pmat = mat.ptr<cv::Vec3b>(y);
 		auto pmask = mask.ptr<uint8_t>(y);
-
+		auto pdist = dist.ptr<float>(y);
+		#ifdef NO_CUDA
+		auto pmat = mat.ptr<cv::Vec3b>(y);
+		#else
+		auto pmat = mat.ptr<uint8_t>(y);
+		#endif
+		
 		if (two_areas)
 		{
 			find_distances_cycle_x(pmask, pdist, pdist_prev, pmat, pmat_prev, xbeg, xr, l_straight, l_diag);
@@ -1063,6 +1068,10 @@ void inpaint_opencv(cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask, const c
 	xbeg = (roi_mask.cols - 1) - 1;
 	xend = xl - 1;
 	find_distances_cycle_y_horiz(dist, roi_mat, roi_mask, -1, ybeg, yend, xbeg, xend, L_STRAIGHT);
+
+	//cv::Mat out;
+	//mat.download(out);
+	//cv::imwrite("y_horiz.png", out);
 }
 
 void tighten() {

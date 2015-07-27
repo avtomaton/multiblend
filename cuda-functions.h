@@ -4,8 +4,13 @@
 #include <cstdint>
 #include <opencv2/core/core.hpp>
 
+void cuda_find_distances_cycle_y_horiz(
+	cv::cuda::GpuMat &dist, cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask,
+	int shift, int ybeg, int yend, int xbeg, int xend,
+	int l_straight);
+
 void cuda_find_distances_cycle_x(
-	const uint8_t *pmask, float *pdist, float *pdist_prev, cv::Vec3b *pnums, cv::Vec3b *pnums_prev,
+	const uint8_t *pmask, float *pdist, const float *pdist_prev, uint8_t *pnums, const uint8_t *pnums_prev,
 	int tmp_xbeg, int tmp_xend,
 	int l_straight, int l_diag);
 
