@@ -989,6 +989,9 @@ void seam() {
 		if (g_cvmaskpyramids.empty() || g_cvoutmask.empty())
 		{
 			set_g_edt_opencv(g_cvseams, g_cvoutmask, g_cvmasks);
+			g_cvoutmask.download(g_cvoutmask_cpu);
+			//for (int i = 0; i < g_cvmasks.size(); ++i)
+			//	printf("release g_cvmasks[%d](%d x %d) = %f MB\n", i, g_cvmasks[i].cols, g_cvmasks[i].rows, g_cvmasks[i].cols * g_cvmasks[i].rows * sizeof(uint8_t)/(1024.0*1024.0));
 			g_cvmasks.clear();
 		}
 		#endif

@@ -1198,10 +1198,9 @@ void dither_opencv(cv::Mat &top, cv::Mat &out)
 	}
 }
 #else
-void dither_opencv(cv::cuda::GpuMat &top, cv::cuda::GpuMat &out)
+void dither_opencv(const cv::cuda::GpuMat &top, cv::cuda::GpuMat &out)
 {
-	printf("dither_opencv\n");
-	exit(1);
+	cuda_dither(top, out, 1 << ACCURACY);
 }
 #endif
 
@@ -1568,7 +1567,7 @@ void blend() {
 		#endif
 	}
 
-	std::vector<cv::Mat> chs(3);
+	/*std::vector<cv::Mat> chs(3);
 	for (int c = 0; c < 3; ++c)
 	{
 		cv::Mat cpumat;
@@ -1578,9 +1577,9 @@ void blend() {
 	}
 	cv::Mat cpuout;
 	cv::merge(chs, cpuout);
-	cv::imwrite("cpuout.png", cpuout);
+	cv::imwrite("cpuout.png", cpuout);*/
 
-	exit(1);
+	//exit(1);
 
 	#ifdef NO_CUDA
 	cv::Mat tmpout;
@@ -1601,7 +1600,9 @@ void blend() {
 	dither_opencv(g_cvoutput_pyramid[0], tmpout);
 	#else
 	for (int c = 0; c < 3; ++c)
+	{
 		dither_opencv(g_cvoutput_channelpyramid[0][c], tmpout[c]);
+	}
 	#endif
 
 	#ifdef NO_CUDA
@@ -1616,6 +1617,7 @@ void blend() {
 	
 	//apply_mask(g_cvout, g_cvoutmask);
 	//cv::imwrite("output_opencv.png", g_cvout);
+
 #endif
 
 	///////////////////////////////////////////////////////////////////////////////////////////

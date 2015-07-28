@@ -187,7 +187,7 @@ void resizeup(const cv::cuda::GpuMat &lmat, cv::cuda::GpuMat &umat, const cv::Si
 void shrink_opencv(struct_level* upper, struct_level* lower, const std::vector<cv::cuda::GpuMat> &umat, std::vector<cv::cuda::GpuMat> &lmat);
 void hps_opencv(struct_level* upper, struct_level* lower, std::vector<cv::cuda::GpuMat> &umat, const std::vector<cv::cuda::GpuMat> &lmat);
 void collapse_opencv(const cv::cuda::GpuMat &lower, cv::cuda::GpuMat &upper);
-void dither_opencv(cv::cuda::GpuMat &top, cv::cuda::GpuMat &out);
+void dither_opencv(const cv::cuda::GpuMat &top, cv::cuda::GpuMat &out);
 #endif
 
 void copy_channel(int i, int c);

@@ -362,6 +362,7 @@ void tiff_cvout()
 	remaining = g_workheight;
 
 	printf("g_workspace: %d x %d\n", g_workwidth, g_workheight);
+	printf("g_cvout: %d x %d\n", g_cvout.cols, g_cvout.rows);
 
 	int cvy = 0;
 	cv::Vec3b *pmat;
@@ -384,7 +385,11 @@ void tiff_cvout()
 				}
 				else
 				{
+					#ifdef NO_CUDA
 					pmask = g_cvoutmask.ptr<uint8_t>(y);
+					#else
+					pmask = g_cvoutmask_cpu.ptr<uint8_t>(y);
+					#endif
 					for (x = 0; x < g_workwidth; x++) {
 						if (pmask[x] == 0)
 						{
@@ -416,12 +421,12 @@ void tiff_cvout()
 			}
 			++y;
 		}
-
 		TIFFWriteEncodedStrip(g_tiff, s, strip, rows*mul);
 		remaining -= rows;
 	}
 
 	TIFFClose(g_tiff);
+	printf("end tiff_cvout\n");
 }
 #else
 void tiff_out() {}

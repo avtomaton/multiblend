@@ -38,6 +38,8 @@ void cuda_pyrDown(const cv::cuda::GpuMat &umat, cv::cuda::GpuMat &lmat);
 
 void cuda_pyrUp(const cv::cuda::GpuMat &lmat, cv::cuda::GpuMat &umat);
 
+void cuda_dither(const cv::cuda::GpuMat &top, cv::cuda::GpuMat &out, int denom);
+
 /*
 void cuda_init();
 void* cuda_stream_create();
