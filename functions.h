@@ -44,6 +44,8 @@ inline float get_l2(const cv::Point &p1, const cv::Point &p2)
 	return (p1.x - p2.x)*(p1.x - p2.x) + (p1.y - p2.y)*(p1.y - p2.y);
 }
 
+void print_gpu_memory();
+
 //load images
 void trim8(void* bitmap, uint32 w, uint32 h, int bpp, int* top, int* left, int* bottom, int* right);
 void trim16(void* bitmap, uint32 w, uint32 h, int bpp, int* top, int* left, int* bottom, int* right);
@@ -85,7 +87,7 @@ int search_l(const cv::Mat &mask, float left, float right, bool isy);
 int search_r(const cv::Mat &mask, float left, float right, bool isy);
 cv::Rect get_visible_rect(const cv::Mat &mask);
 void inpaint_opencv(cv::Mat &mat, const cv::Mat &mask, const cv::Rect &rect);
-void mat2struct(int i, const std::string &filename, cv::Mat &matimage, const cv::Mat &mask, cv::Mat &dist);
+void mat2struct(int i, const std::string &filename, cv::Mat &matimage, cv::Mat &mask, cv::Mat &dist);
 #else
 inline int non_zero_row(const cv::cuda::GpuMat &mask, int y);
 inline int non_zero_col(const cv::cuda::GpuMat &mask, int x);
@@ -112,7 +114,7 @@ int search_l(const cv::cuda::GpuMat &mask, float left, float right, bool isy);
 int search_r(const cv::cuda::GpuMat &mask, float left, float right, bool isy);
 cv::Rect get_visible_rect(const cv::cuda::GpuMat &mask);
 void inpaint_opencv(cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask, const cv::Rect &rect);
-void mat2struct(int i, const std::string &filename, std::vector<cv::cuda::GpuMat> &matimages, const cv::cuda::GpuMat &mask, cv::cuda::GpuMat &dist);
+void mat2struct(int i, const std::string &filename, std::vector<cv::cuda::GpuMat> &matimages, cv::cuda::GpuMat &mask, cv::cuda::GpuMat &dist);
 #endif
 void load_images();
 
@@ -129,7 +131,7 @@ void find_seamdistances_cycle_y_horiz(
 	int shift, int ybeg, int yend, int xbeg, int xend,
 	int l_straight);
 void find_seamdistances_cycle_x(
-	const std::vector<const uint8_t*> &pmasks, const uint8_t *poutmask, int *pdist, int *pdist_prev, uint8_t *pnums, uint8_t *pnums_prev,
+	const std::vector<const uint8_t*> &pmasks, const uint8_t *poutmask, int *pdist, const int *pdist_prev, uint8_t *pnums, const uint8_t *pnums_prev,
 	int tmp_xbeg, int tmp_xend,
 	int l_straight, int l_diag);
 void find_seamdistances_cycle_y_vert(
@@ -137,14 +139,14 @@ void find_seamdistances_cycle_y_vert(
 	int shift, int ybeg, int yend, int xbeg, int xend,
 	int l_straight, int l_diag);
 void init_seamdist(cv::Mat &dist, cv::Mat &nums, cv::Mat &outmask, const std::vector<cv::Mat> &masks);
-void set_g_edt_opencv(cv::Mat &dist, cv::Mat &nums, cv::Mat &outmask, const std::vector<cv::Mat> &masks);
+void set_g_edt_opencv(cv::Mat &nums, cv::Mat &outmask, const std::vector<cv::Mat> &masks);
 #else
 void find_seamdistances_cycle_y_horiz(
 	cv::cuda::GpuMat &dist, cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &outmask, const std::vector<cv::cuda::GpuMat> &masks,
 	int shift, int ybeg, int yend, int xbeg, int xend,
 	int l_straight);
 void find_seamdistances_cycle_x(
-	const std::vector<const uint8_t*> &pmasks, const uint8_t *poutmask, int *pdist, int *pdist_prev, uint8_t *pnums, uint8_t *pnums_prev,
+	const std::vector<const uint8_t*> &pmasks, const uint8_t *poutmask, int *pdist, const int *pdist_prev, uint8_t *pnums, const uint8_t *pnums_prev,
 	int tmp_xbeg, int tmp_xend,
 	int l_straight, int l_diag);
 void find_seamdistances_cycle_y_vert(
@@ -152,7 +154,7 @@ void find_seamdistances_cycle_y_vert(
 	int shift, int ybeg, int yend, int xbeg, int xend,
 	int l_straight, int l_diag);
 void init_seamdist(cv::cuda::GpuMat &dist, cv::cuda::GpuMat &nums, cv::cuda::GpuMat &outmask, const std::vector<cv::cuda::GpuMat> &masks);
-void set_g_edt_opencv(cv::cuda::GpuMat &dist, cv::cuda::GpuMat &nums, cv::cuda::GpuMat &outmask, const std::vector<cv::cuda::GpuMat> &masks);
+void set_g_edt_opencv(cv::cuda::GpuMat &nums, cv::cuda::GpuMat &outmask, const std::vector<cv::cuda::GpuMat> &masks);
 #endif
 void seam();
 
@@ -171,9 +173,29 @@ void hshrink(struct_level* upper, struct_level* lower);
 void vshrink(struct_level* upper, struct_level* lower);
 void hps(struct_level* upper, struct_level *lower);
 void shrink_hps(struct_level* upper, struct_level* lower);
+
+#ifdef NO_CUDA
+void resizedown(const cv::Mat &umat, cv::Mat &lmat, const cv::Size &ofs);
+void resizeup(const cv::Mat &lmat, cv::Mat &umat, const cv::Size &ofs = cv::Size(0, 0));
+void shrink_opencv(struct_level* upper, struct_level* lower, const cv::Mat &umat, cv::Mat &lmat);
+void hps_opencv(struct_level* upper, struct_level* lower, cv::Mat &umat, const cv::Mat &lmat);
+void collapse_opencv(const cv::Mat &lower, cv::Mat &upper);
+void dither_opencv(cv::Mat &top, cv::Mat &out);
+#else
+void resizedown(const cv::cuda::GpuMat &umat, cv::cuda::GpuMat &lmat, const cv::Size &ofs);
+void resizeup(const cv::cuda::GpuMat &lmat, cv::cuda::GpuMat &umat, const cv::Size &ofs = cv::Size(0, 0));
+void shrink_opencv(struct_level* upper, struct_level* lower, const std::vector<cv::cuda::GpuMat> &umat, std::vector<cv::cuda::GpuMat> &lmat);
+void hps_opencv(struct_level* upper, struct_level* lower, std::vector<cv::cuda::GpuMat> &umat, const std::vector<cv::cuda::GpuMat> &lmat);
+void collapse_opencv(const cv::cuda::GpuMat &lower, cv::cuda::GpuMat &upper);
+void dither_opencv(cv::cuda::GpuMat &top, cv::cuda::GpuMat &out);
+#endif
+
 void copy_channel(int i, int c);
+void copy_channel_opencv(int i);
 void mask_into_output(struct_level* input, float* mask, struct_level* output, bool first);
+void mask_into_output_opencv(int i, int l, bool first);
 void collapse(struct_level* lower, struct_level* upper);
+
 void dither(struct_level* top, void* channel);
 void blend();
 

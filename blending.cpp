@@ -5,6 +5,7 @@
 #include "globals.h"
 #include "functions.h"
 #include "defines.h"
+#include "cuda-functions.h"
 
 #include <algorithm>
 #include <emmintrin.h>
@@ -12,6 +13,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/cudawarping.hpp>
 
 void save_out_pyramid(int c, bool collapsed) {
 	Proftimer proftimer(&mprofiler, "save_out_pyramid");
@@ -395,7 +397,7 @@ void resizedown(const cv::Mat &umat, cv::Mat &lmat, const cv::Size &ofs)
 	}
 }
 
-void resizeup(const cv::Mat &lmat, cv::Mat &umat, const cv::Size &ofs = cv::Size(0,0))
+void resizeup(const cv::Mat &lmat, cv::Mat &umat, const cv::Size &ofs)
 {
 	int uh = umat.rows;
 	int uw = umat.cols;
@@ -428,20 +430,81 @@ void resizeup(const cv::Mat &lmat, cv::Mat &umat, const cv::Size &ofs = cv::Size
 	}
 }
 #else
-void resizedown(const cv::cuda::GpuMat &umat, cv::cuda::GpuMat &lmat, const cv::Size &ofs)
+void resizedown(const cv::Mat &umat, cv::Mat &lmat)
 {
-	printf("resizeup\n");
-	exit(1);
+	int uh = umat.rows;
+	int uw = umat.cols;
+	int lw = (uw + 1) >> 1;
+	int lh = (uh + 1) >> 1;
+
+	typedef short tmp_t;
+
+	cv::Mat tmp(uh, lw, CV_16S);
+	int eights(8);
+	for (int y = 0; y < uh; ++y)
+	{
+		auto ptmp = tmp.ptr<tmp_t>(y);
+		auto pumat = umat.ptr<short>(y);
+		for (int x = 1; x < lw - 1; ++x)
+		{
+			ptmp[x] = pumat[2 * x - 1] + 2 * pumat[2 * x] + pumat[2 * x + 1];
+		}
+		ptmp[0] = 3 * pumat[0] + pumat[1];
+		ptmp[lw - 1] = 3 * pumat[2 * (lw - 1)] + pumat[2 * (lw - 1) - 1];
+	}
+
+	for (int x = 0; x < lw; ++x)
+	{
+		for (int y = 1; y < lh - 1; ++y)
+		{
+			lmat.at<short>(y, x) = ((int)tmp.at<tmp_t>(2 * y - 1, x) + 2 * (int)tmp.at<tmp_t>(2 * y, x) + (int)tmp.at<tmp_t>(2 * y + 1, x) + eights) / 16;
+		}
+		lmat.at<short>(0, x) = (3 * (int)tmp.at<tmp_t>(0, x) + (int)tmp.at<tmp_t>(1, x) + eights) / 16;
+		lmat.at<short>(lh - 1, x) = (3 * (int)tmp.at<tmp_t>(2 * (lh - 1), x) + (int)tmp.at<tmp_t>(2 * (lh - 1) - 1, x) + eights) / 16;
+	}
+
 }
-void resizeup(const cv::cuda::GpuMat &lmat, cv::cuda::GpuMat &umat, const cv::Size &ofs = cv::Size(0, 0))
+
+void resizeup(const cv::Mat &lmat, cv::Mat &umat)
 {
 	printf("resizeup\n");
-	exit(1);
+	int uh = umat.rows;
+	int uw = umat.cols;
+	int lw = (uw + 1) >> 1;
+	int lh = (uh + 1) >> 1;
+
+	cv::Mat tmp(lh, uw, lmat.type());
+	short ones(1);
+	for (int y = 0; y < lh; ++y)
+	{
+		auto ptmp = tmp.ptr<short>(y);
+		auto plmat = lmat.ptr<short>(y);
+
+		for (int x = 0; x < lw - 1; ++x)
+		{
+			ptmp[2 * x] = plmat[x];
+			ptmp[2 * x + 1] = (plmat[x] + plmat[x + 1] + ones) / 2;
+		}
+		ptmp[(lw - 1) * 2] = plmat[lw - 1];
+	}
+
+	for (int x = 0; x < uw; ++x)
+	{
+		for (int y = 0; y < lh - 1; ++y)
+		{
+			umat.at<short>(2 * y, x) = tmp.at<short>(y, x);
+			umat.at<short>(2 * y + 1, x) = (tmp.at<short>(y, x) + tmp.at<short>(y + 1, x) + ones) / 2;
+		}
+		umat.at<short>((lh - 1) * 2, x) = tmp.at<short>(lh - 1, x);
+	}
 }
 #endif
 
 #ifdef NO_CUDA
 void shrink_opencv(struct_level* upper, struct_level* lower, const cv::Mat &umat, cv::Mat &lmat)
+#else
+void shrink_opencv(struct_level* upper, struct_level* lower, const std::vector<cv::cuda::GpuMat> &umat, std::vector<cv::cuda::GpuMat> &lmat)
+#endif
 {
 	Proftimer proftimer(&mprofiler, "shrink_opencv");
 
@@ -453,6 +516,8 @@ void shrink_opencv(struct_level* upper, struct_level* lower, const cv::Mat &umat
 	int ylim = (upper->y1 >> 1) - lower->y0; // ypos on lower when we need to duplicate last rows
 	int lw = lower->w;
 	int lh = lower->h;
+
+	#ifdef NO_CUDA
 	lmat = cv::Mat(lh, lw, CV_16SC3);
 
 	Proftimer proftimer_resize(&mprofiler, "resizedown_shrink");
@@ -482,9 +547,31 @@ void shrink_opencv(struct_level* upper, struct_level* lower, const cv::Mat &umat
 		for (int x = 0; x < lw; ++x)
 			plevel[x] = pborder[x];
 	}
+	#else
+	for (int c = 0; c < 3; ++c)
+	{
+		cv::cuda::GpuMat tresh;
+		cuda_pyrDown(umat[c], lmat[c]);
+
+		/*cv::Mat um, lm;
+		umat[c].download(um);
+		lm = cv::Mat((um.rows + 1) >> 1, (um.cols + 1) >> 1, um.type());
+		resizedown(um, lm);
+		lmat[c].upload(lm);*/
+
+		cv::cuda::GpuMat tmp;
+		cv::cuda::copyMakeBorder(lmat[c], tmp, y_extra0, lh - ylim - 1, x_extra0, lw - xlim - 1, cv::BORDER_REPLICATE);
+		lmat[c] = tmp;
+		//printf("alloc|realloc lmat[%d](%d x %d) = %f MB\n", c, lmat[c].cols, lmat[c].rows, lmat[c].cols * lmat[c].rows * sizeof(short) / (1024.0*1024.0));
+	}
+	#endif
 }
 
+#ifdef NO_CUDA
 void hps_opencv(struct_level* upper, struct_level* lower, cv::Mat &umat, const cv::Mat &lmat)
+#else
+void hps_opencv(struct_level* upper, struct_level* lower, std::vector<cv::cuda::GpuMat> &umat, const std::vector<cv::cuda::GpuMat> &lmat)
+#endif
 {
 	Proftimer proftimer(&mprofiler, "hps_opencv");
 	int x_extra0 = (upper->x0 >> 1) - lower->x0;
@@ -492,24 +579,42 @@ void hps_opencv(struct_level* upper, struct_level* lower, cv::Mat &umat, const c
 	int y_extra0 = (upper->y0 >> 1) - lower->y0;
 	int ylim = (upper->y1 >> 1) - lower->y0; // ypos on lower when we need to duplicate last rows
 
+	#ifdef NO_CUDA
+	/*cv::Mat tmp = cv::Mat(ylim+1 - y_extra0, xlim+1 - x_extra0, CV_16SC3);
+	for (int y = y_extra0; y <= ylim; ++y)
+	{
+		cv::Vec3s *pmat = tmp.ptr<cv::Vec3s>(y - y_extra0);
+		const cv::Vec3s *plevel = lmat.ptr<cv::Vec3s>(y);
+
+		for (int x = x_extra0; x <= xlim; ++x)
+			pmat[x - x_extra0] = plevel[x];
+	}*/
+
 	cv::Mat tmp2(umat.size(), umat.type());
 	Proftimer proftimer_resize(&mprofiler, "resizeup_hps");
 	resizeup(lmat, tmp2, cv::Size(x_extra0, y_extra0));
 	proftimer_resize.stop();
 	umat -= tmp2;
+	#else
+	for (int c = 0; c < 3; ++c)
+	{
+		cv::cuda::GpuMat tmp;
+		cv::cuda::GpuMat roi_lmat(lmat[c], cv::Rect(x_extra0, y_extra0, xlim - x_extra0 + 1, ylim - y_extra0 + 1));
+		/*cv::Mat um, lm;
+		roi_lmat.download(lm);
+		um = cv::Mat(lm.rows * 2 - 1, lm.cols * 2 - 1, lm.type());
+		resizeup(lm, um);
+		tmp.upload(um);
+		*/
+
+		Proftimer proftimer_resize(&mprofiler, "resizeup_hps");
+		cuda_pyrUp(roi_lmat, tmp);
+		proftimer_resize.stop();
+
+		cv::cuda::subtract(umat[c], tmp, umat[c]);
+	}
+	#endif
 }
-#else
-void shrink_opencv(struct_level* upper, struct_level* lower, const cv::cuda::GpuMat &umat, cv::cuda::GpuMat &lmat)
-{
-	printf("shrink_opencv\n");
-	exit(1);
-}
-void hps_opencv(struct_level* upper, struct_level* lower, cv::cuda::GpuMat &umat, const cv::cuda::GpuMat &lmat)
-{
-	printf("hps_opencv\n");
-	exit(1);
-}
-#endif
 
 void copy_channel(int i, int c) {
 	Proftimer proftimer(&mprofiler, "copy_channel");
@@ -681,8 +786,28 @@ void copy_channel_opencv(int i)
 #else
 void copy_channel_opencv(int i)
 {
-	printf("copy_channel_opencv\n");
-	exit(1);
+	struct_level* level = &PY(i, 0);
+	int lw = level->w;
+	int lh = level->h;
+
+	int x_extra0 = g_images[i].xpos - level->x0;
+	int y_extra0 = g_images[i].ypos - level->y0;
+	int y_extra1 = level->y1 - (g_images[i].ypos + g_images[i].height - 1);
+	int xlim = g_images[i].width + x_extra0;
+	int ylim = g_images[i].height + y_extra0;
+
+	for (int c = 0; c < 3; ++c)
+	{
+		g_cvchannels[i][c].convertTo(g_cvchannelpyramids[0][c], CV_16S);
+		//printf("alloc|realloc g_cvchannelpyramids[0][%d](%d x %d) = %f MB\n", c, g_cvchannelpyramids[0][c].cols, g_cvchannelpyramids[0][c].rows, g_cvchannelpyramids[0][c].cols * g_cvchannelpyramids[0][c].rows * sizeof(short)/(1024.0*1024.0));
+		//printf("release g_cvchannels[%d][%d](%d x %d) = %f MB\n", i, c, g_cvchannels[i][c].cols, g_cvchannels[i][c].rows, g_cvchannels[i][c].cols * g_cvchannels[i][c].rows * sizeof(uint8_t) / (1024.0*1024.0));
+		g_cvchannels[i][c].release();
+
+		cv::cuda::multiply(g_cvchannelpyramids[0][c], 1 << ACCURACY, g_cvchannelpyramids[0][c]);
+		cv::cuda::GpuMat tmp;
+		cv::cuda::copyMakeBorder(g_cvchannelpyramids[0][c], tmp, y_extra0, lh - ylim, x_extra0, lw - xlim, cv::BORDER_REPLICATE);
+		g_cvchannelpyramids[0][c] = tmp;
+	}
 }
 #endif
 
@@ -791,17 +916,15 @@ void mask_into_output(struct_level* input, float* mask, struct_level* output, bo
 
 void mask_into_output_opencv(int i, int l, bool first)
 {
-
 	Proftimer proftimer(&mprofiler, "mask_into_output_opencv");
-
-	int chsize = g_cvmatpyramids[l].channels();
 
 	if (first)
 	{
 		#ifdef NO_CUDA
 		g_cvoutput_pyramid[l] = cv::Mat::zeros(g_cvmaskpyramids[i][l].size(), g_cvmatpyramids[l].type());
 		#else
-		g_cvoutput_pyramid[l] = cv::cuda::GpuMat(g_cvmaskpyramids[i][l].size(), g_cvmatpyramids[l].type(), cv::Scalar(0));
+		for (int c = 0; c < 3; ++c)
+			g_cvoutput_channelpyramid[l][c] = cv::cuda::GpuMat(g_cvmaskpyramids[i][l].size(), g_cvchannelpyramids[l][0].type(), cv::Scalar(0));
 		#endif
 	}
 	int x_extra0, y_extra0;
@@ -823,36 +946,49 @@ void mask_into_output_opencv(int i, int l, bool first)
 	}
 	int d;
 	d = y_extra0 + PY(i, l).y0;
-	if (d < 0) 
+	if (d < 0)
 		y_extra0 -= d;
 	d = x_extra0 + PY(i, l).x0;
-	if (d < 0) 
+	if (d < 0)
 		x_extra0 -= d;
 	d = ylim + PY(i, l).y0;
-	if (d > g_cvmaskpyramids[i][l].rows) 
+	if (d > g_cvmaskpyramids[i][l].rows)
 		ylim = g_cvmaskpyramids[i][l].rows - PY(i, l).y0;
 	d = xlim + PY(i, l).x0;
 	if (d > g_cvmaskpyramids[i][l].cols)
 		xlim = g_cvmaskpyramids[i][l].cols - PY(i, l).x0;
 
+	#ifdef NO_CUDA
+
 	for (int y = y_extra0; y < ylim; ++y)
 	{
-		const cv::Vec3s *pmat = g_cvmatpyramids[l].ptr<cv::Vec3s>(y);
-		cv::Vec3s *pout = PY(i, l).x0 + g_cvoutput_pyramid[l].ptr<cv::Vec3s>(y + PY(i, l).y0);
-		float *pmask = PY(i, l).x0 + g_cvmaskpyramids[i][l].ptr<float>(y + PY(i, l).y0);
+		auto pmat = g_cvmatpyramids[l].ptr<cv::Vec3s>(y);
+		auto pout = PY(i, l).x0 + g_cvoutput_pyramid[l].ptr<cv::Vec3s>(y + PY(i, l).y0);
+		auto pmask = PY(i, l).x0 + g_cvmaskpyramids[i][l].ptr<mask_t>(y + PY(i, l).y0);
 		for (int x = x_extra0; x < xlim; ++x)
 		{
-			if (pmask[x] == 0.0f)
+			if (pmask[x] == 0)
 				continue;
-			else if (pmask[x] == 1.0f)
+			else if (pmask[x] == max_mask_value)
 				pout[x] = pmat[x];
 			else
 			{
 				for (int c = 0; c < 3; ++c)
-					pout[x][c] += (int)(pmask[x] * pmat[x][c] + 0.5);
+					pout[x][c] += (int)((float)pmask[x] * pmat[x][c] / max_mask_value + 0.5);
 			}
 		}
 	}
+	#else
+	std::vector<cv::cuda::GpuMat> roi_mats(3);
+	for (int c = 0; c < 3; ++c)
+		roi_mats[c] = cv::cuda::GpuMat(g_cvchannelpyramids[l][c], cv::Rect(x_extra0, y_extra0, xlim - x_extra0 + 1, ylim - y_extra0 + 1));
+
+	cuda_mask_into_output(g_cvoutput_channelpyramid[l], roi_mats, g_cvmaskpyramids[i][l], cv::Size(PY(i, l).x0 + x_extra0, PY(i, l).y0 + y_extra0), max_mask_value);
+	
+	for (int c = 0; c < 3; ++c)
+		g_cvchannelpyramids[l][c].release();
+
+	#endif
 }
 
 void collapse(struct_level* lower, struct_level* upper) {
@@ -945,21 +1081,28 @@ void collapse_opencv(const cv::cuda::GpuMat &lower, cv::cuda::GpuMat &upper)
 	
 	#ifdef NO_CUDA
 	cv::Mat tmp(upper.size(), upper.type());
-	#else
-	cv::cuda::GpuMat tmp(upper.size(), upper.type());
-	#endif
-
+	
 	Proftimer proftimer_resize(&mprofiler, "resizeup_collapse");
 	resizeup(lower, tmp);
 	proftimer_resize.stop();
 
-	#ifdef NO_CUDA
 	upper += tmp;
 	#else
-	cv::cuda::add(upper, tmp, upper, cv::cuda::GpuMat(), -1, cv::cuda::Stream::Null());
+	cv::cuda::GpuMat tmp;
+	cv::cuda::GpuMat roi_lower(lower, cv::Rect(0, 0, (upper.cols + 1) >> 1, (upper.rows + 1) >> 1));
+	/*cv::Mat um, lm;
+	roi_lower.download(lm);
+	um = cv::Mat(lm.rows*2 - 1, lm.cols*2 - 1, lm.type());
+	resizeup(lm, um);
+	tmp.upload(um);*/
+
+	Proftimer proftimer_resize(&mprofiler, "resizeup_collapse");
+	cuda_pyrUp(roi_lower, tmp);
+	proftimer_resize.stop();
+
+	cv::cuda::add(upper, tmp, upper);
 	#endif
 }
-
 
 void dither(struct_level* top, void* channel) {
 	Proftimer proftimer(&mprofiler, "dither");
@@ -1135,6 +1278,7 @@ void blend() {
 	int size_of;
 
 	output(1,"blending...\n");
+	print_gpu_memory();
 
 	if (g_workbpp==8) 
 		pitch_plus=7; 
@@ -1350,21 +1494,37 @@ void blend() {
 #else
 	///////////////////////////////////////////////////////////////////////////////////////////
 
+	#ifdef NO_CUDA
 	g_cvmatpyramids.resize(g_levels);
 	g_cvoutput_pyramid.resize(g_levels);
-
+	#else
+	g_cvchannelpyramids.resize(g_levels);
+	g_cvoutput_channelpyramid.resize(g_levels);
+	for (int l = 0; l < g_cvchannelpyramids.size(); ++l)
+	{
+		g_cvchannelpyramids[l].resize(3);
+		g_cvoutput_channelpyramid[l].resize(3);
+	}
+	#endif
+	
 	for (i = 0; i<g_numimages; i++) {
+		printf("i = %d\n", i);
 		copy_channel_opencv(i);
-
+		print_gpu_memory();
 		for (l = 0; l < g_levels - 1; l++)
 		{
+			#ifdef NO_CUDA
 			shrink_opencv(&PY(i, l), &PY(i, l + 1), g_cvmatpyramids[l], g_cvmatpyramids[l + 1]);
 			hps_opencv(&PY(i, l), &PY(i, l + 1), g_cvmatpyramids[l], g_cvmatpyramids[l + 1]);
+			#else
+			shrink_opencv(&PY(i, l), &PY(i, l + 1), g_cvchannelpyramids[l], g_cvchannelpyramids[l + 1]);
+			hps_opencv(&PY(i, l), &PY(i, l + 1), g_cvchannelpyramids[l], g_cvchannelpyramids[l + 1]);
+			#endif
 			//channels_pyramid[i][l][0] = get_cvpyramid(g_cvmatpyramids[l]);
 			//if (l == g_levels - 2)
 			//	channels_pyramid[i][l + 1][0] = get_cvpyramid(g_cvmatpyramids[l+1]);
 		}
-
+		print_gpu_memory();
 		for (l = 0; l < g_levels; l++)
 		{
 			mask_into_output_opencv(i, l, i == 0);
@@ -1399,11 +1559,33 @@ void blend() {
 	}*/
 
 	for (l = g_levels - 1; l > 0; l--)
+	{
+		#ifdef NO_CUDA
 		collapse_opencv(g_cvoutput_pyramid[l], g_cvoutput_pyramid[l - 1]);
+		#else
+		for (int c = 0; c < 3; ++c)
+			collapse_opencv(g_cvoutput_channelpyramid[l][c], g_cvoutput_channelpyramid[l - 1][c]);
+		#endif
+	}
+
+	std::vector<cv::Mat> chs(3);
+	for (int c = 0; c < 3; ++c)
+	{
+		cv::Mat cpumat;
+		g_cvoutput_channelpyramid[0][c].download(cpumat);
+		cpumat /= 1 << ACCURACY;
+		cpumat.convertTo(chs[c], CV_8U);
+	}
+	cv::Mat cpuout;
+	cv::merge(chs, cpuout);
+	cv::imwrite("cpuout.png", cpuout);
+
+	exit(1);
+
 	#ifdef NO_CUDA
 	cv::Mat tmpout;
 	#else
-	cv::cuda::GpuMat tmpout;
+	std::vector<cv::cuda::GpuMat> tmpout(3);
 	#endif
 	/*cv::Mat tmpout2;
 	tmpout = g_cvoutput_pyramid[0].clone();
@@ -1415,14 +1597,20 @@ void blend() {
 	outstring += ".png";
 	cv::imwrite(outstring, tmpout2);
 	*/
-
+	#ifdef NO_CUDA
 	dither_opencv(g_cvoutput_pyramid[0], tmpout);
+	#else
+	for (int c = 0; c < 3; ++c)
+		dither_opencv(g_cvoutput_channelpyramid[0][c], tmpout[c]);
+	#endif
 
 	#ifdef NO_CUDA
 	cv::Mat outroi(tmpout, cv::Rect(0, 0, g_workwidth, g_workheight));
 	g_cvout = outroi;
 	#else
-	cv::cuda::GpuMat outroi(tmpout, cv::Rect(0, 0, g_workwidth, g_workheight));
+	cv::cuda::GpuMat mer_mat;
+	cv::cuda::merge(tmpout, mer_mat);
+	cv::cuda::GpuMat outroi(mer_mat, cv::Rect(0, 0, g_workwidth, g_workheight));
 	outroi.download(g_cvout);
 	#endif
 	

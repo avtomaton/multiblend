@@ -1095,6 +1095,8 @@ void inpaint_opencv(cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask, const c
 	xend = xl - 1;
 	find_distances_cycle_y_horiz(dist, roi_mat, roi_mask, -1, ybeg, yend, xbeg, xend, L_STRAIGHT);
 
+
+
 	//cv::Mat out;
 	//mat.download(out);
 	//cv::imwrite("y_horiz.png", out);
@@ -1451,9 +1453,9 @@ cv::Rect get_visible_rect(const cv::cuda::GpuMat &mask)
 }
 
 #ifdef NO_CUDA
-void mat2struct(int i, const std::string &filename, cv::Mat &matimage, const cv::Mat &mask)
+void mat2struct(int i, const std::string &filename, cv::Mat &matimage, cv::Mat &mask)
 #else
-void mat2struct(int i, const std::string &filename, std::vector<cv::cuda::GpuMat> &matimages, const cv::cuda::GpuMat &mask)
+void mat2struct(int i, const std::string &filename, std::vector<cv::cuda::GpuMat> &matimages, cv::cuda::GpuMat &mask)
 #endif
 {
 	Proftimer proftimer_mat2struct(&mprofiler, "mat2struct");
@@ -1463,13 +1465,31 @@ void mat2struct(int i, const std::string &filename, std::vector<cv::cuda::GpuMat
 	#else
 		strncpy(g_images[i].filename, filename.c_str(), 256);
 	#endif
-
-	cv::Rect vis_rect = get_visible_rect(mask);
+	
+	cv::Rect vis_rect;
+	#ifdef NO_CUDA
+	vis_rect = get_visible_rect(mask);
+	#else
+	if (g_offsets[i] == cv::Size())
+	{
+		vis_rect = get_visible_rect(mask);
+		g_offsets[i].width = vis_rect.x;
+		g_offsets[i].height = vis_rect.y;
+		g_sizes[i] = vis_rect.size();
+	}
+	else
+	{
+		vis_rect.x = g_offsets[i].width;
+		vis_rect.y = g_offsets[i].height;
+		vis_rect.width = g_sizes[i].width;
+		vis_rect.height = g_sizes[i].height;
+	}
+	#endif
 	I.xpos = vis_rect.x;
 	I.ypos = vis_rect.y;
 	I.width = vis_rect.width;
 	I.height = vis_rect.height;
-
+	
 	#ifdef NO_OPENCV
 		for (int c = 0; c < g_numchannels; ++c)
 		{
@@ -1488,7 +1508,23 @@ void mat2struct(int i, const std::string &filename, std::vector<cv::cuda::GpuMat
 	inpaint_opencv(matimage, mask, cv::Rect(I.xpos, I.ypos, I.width, I.height));
 	#else
 	for (int c = 0; c < 3; ++c)
+	{
 		inpaint_opencv(matimages[c], mask, cv::Rect(I.xpos, I.ypos, I.width, I.height));
+		cv::cuda::GpuMat roi_mat(matimages[c], cv::Rect(I.xpos, I.ypos, I.width, I.height));
+		cv::cuda::GpuMat croped_mat;
+		roi_mat.copyTo(croped_mat);
+		//printf("allocate croped_mat(%d x %d) = %f MB\n", croped_mat.cols, croped_mat.rows, croped_mat.cols * croped_mat.rows * sizeof(uint8_t) / (1024.0*1024.0));
+		//printf("release matimages(%d x %d) = %f MB\n", matimages[c].cols, matimages[c].rows, matimages[c].cols * matimages[c].rows * sizeof(uint8_t) / (1024.0*1024.0));
+		matimages[c] = croped_mat;
+	}
+	/*cv::cuda::GpuMat roi_mask(mask, cv::Rect(I.xpos, I.ypos, I.width, I.height));
+	cv::cuda::GpuMat croped_mask;
+	roi_mask.copyTo(croped_mask);
+	printf("allocate croped_mask(%d x %d) = %f MB\n", croped_mask.cols, croped_mask.rows, croped_mask.cols * croped_mask.rows * sizeof(uint8_t) / (1024.0*1024.0));
+	printf("release mask(%d x %d) = %f MB\n", mask.cols, mask.rows, mask.cols * mask.rows * sizeof(uint8_t) / (1024.0*1024.0));
+	mask = croped_mask;
+	*/
+
 	#endif
 
 	#ifdef NO_OPENCV
@@ -1505,9 +1541,21 @@ void mat2struct(int i, const std::string &filename, std::vector<cv::cuda::GpuMat
 }
 
 void load_images() {
+
 	Proftimer proftimer_load_images(&mprofiler, "load_images");
 
+	printf("load_images\n");
+	print_gpu_memory();
+
 	char buf[256];
+
+	#ifndef NO_CUDA
+	if (g_offsets.empty())
+	{
+		g_offsets.resize(g_numimages);
+		g_sizes.resize(g_numimages);
+	}
+	#endif
 
 	for (int i = 0; i < g_numimages; ++i) {
 		//cv::Mat matimage = cv::imread(argv[i], CV_LOAD_IMAGE_COLOR);
@@ -1521,7 +1569,10 @@ void load_images() {
 		#ifdef NO_CUDA
 		mat2struct(i, buf, g_cvmats[i], g_cvmasks[i]);
 		#else
-		mat2struct(i, buf, g_cvchannels[i], g_cvmasks[i]);
+		if (g_cvmaskpyramids.empty())
+			mat2struct(i, buf, g_cvchannels[i], g_cvmasks[i]);
+		else
+			mat2struct(i, buf, g_cvchannels[i], g_cvmaskpyramids[i][0]);
 		#endif
 	}
 
