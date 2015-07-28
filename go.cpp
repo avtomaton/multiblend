@@ -5,6 +5,9 @@
 
 
 void go() {
+	printf("go\n");
+	print_gpu_memory();
+
 	int blend_wh;
 	int i;
 	int pitch;

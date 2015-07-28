@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <opencv2/core/core.hpp>
 
+void cuda_get_memory(size_t *free, size_t *total);
+
 void cuda_find_distances_cycle_y_horiz(
 	cv::cuda::GpuMat &dist, cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask,
 	int shift, int ybeg, int yend, int xbeg, int xend,
@@ -28,6 +30,11 @@ void cuda_find_seamdistances_cycle_y_horiz(
 
 void cuda_extract_masks(std::vector<std::vector<cv::cuda::GpuMat> > &cvmaskpyramids, const cv::cuda::GpuMat &cvseams, int mask_value);
 
+void cuda_mask_into_output(std::vector<cv::cuda::GpuMat> &outs, const std::vector<cv::cuda::GpuMat> &ins, const cv::cuda::GpuMat &mask, const cv::Size &ofs, int max_value);
+
+void cuda_pyrDown(const cv::cuda::GpuMat &umat, cv::cuda::GpuMat &lmat);
+
+void cuda_pyrUp(const cv::cuda::GpuMat &lmat, cv::cuda::GpuMat &umat);
 
 /*
 void cuda_init();
@@ -45,12 +52,10 @@ void cuda_points_from_device(const diy::Point *device_data, diy::Point *host_dat
 
 void cuda_StreamSynchronize(void *stream);
 
-
-
-
 int cuda_simple_test(diy::Point *points, int size, void *stream);
 int cuda_init_mat(
 	const diy::Point *map, diy::Point *ocv_map,
 	size_t rows, size_t cols, int channels, real_t finish_cx, real_t finish_cy);
 */
+
 #endif //CUDA_FUNCTIONS_H

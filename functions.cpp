@@ -1,11 +1,23 @@
 #include "functions.h"
 #include "globals.h"
+#include "cuda-functions.h"
 #include  <cstdarg>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 //#include <opencv2/cudaarithm.hpp>
+
+void print_gpu_memory()
+{
+	static int oldused = 0;
+	size_t free, total;
+	cuda_get_memory(&free, &total);
+	printf("cuda memory: %f MB, %f MB\n", (total - free) / (1024.0*1024.0), free / (1024.0*1024.0));
+	printf("diff = %f MB\n\n", ((int)(total - free) - oldused) / (1024.0*1024.0));
+	oldused = total - free;
+}
+
 
 void clear_temp() {
 	int i, c;

@@ -1482,8 +1482,8 @@ void mat2struct(int i, const std::string &filename, std::vector<cv::cuda::GpuMat
 		cv::cuda::GpuMat roi_mat(matimages[c], cv::Rect(I.xpos, I.ypos, I.width, I.height));
 		cv::cuda::GpuMat croped_mat;
 		roi_mat.copyTo(croped_mat);
-		printf("allocate croped_mat(%d x %d) = %f MB\n", croped_mat.cols, croped_mat.rows, croped_mat.cols * croped_mat.rows * sizeof(uint8_t) / (1024.0*1024.0));
-		printf("release matimages(%d x %d) = %f MB\n", matimages[c].cols, matimages[c].rows, matimages[c].cols * matimages[c].rows * sizeof(uint8_t) / (1024.0*1024.0));
+		//printf("allocate croped_mat(%d x %d) = %f MB\n", croped_mat.cols, croped_mat.rows, croped_mat.cols * croped_mat.rows * sizeof(uint8_t) / (1024.0*1024.0));
+		//printf("release matimages(%d x %d) = %f MB\n", matimages[c].cols, matimages[c].rows, matimages[c].cols * matimages[c].rows * sizeof(uint8_t) / (1024.0*1024.0));
 		matimages[c] = croped_mat;
 	}
 	/*cv::cuda::GpuMat roi_mask(mask, cv::Rect(I.xpos, I.ypos, I.width, I.height));
@@ -1510,6 +1510,9 @@ void mat2struct(int i, const std::string &filename, std::vector<cv::cuda::GpuMat
 }
 
 void load_images() {
+	printf("load_images\n");
+	print_gpu_memory();
+
 	char buf[256];
 
 	#ifndef NO_CUDA

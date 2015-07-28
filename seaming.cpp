@@ -774,8 +774,8 @@ void set_g_edt_opencv(cv::cuda::GpuMat &nums, cv::cuda::GpuMat &outmask, const s
 		cv::cuda::GpuMat dist(g_workheight, g_workwidth, CV_32S);
 		nums = cv::cuda::GpuMat(g_workheight, g_workwidth, CV_8U);
 		outmask = cv::cuda::GpuMat(g_workheight, g_workwidth, CV_8U);
-		printf("allocate nums(%d x %d) = %f MB\n", nums.cols, nums.rows, nums.cols * nums.rows * sizeof(uint8_t) / (1024.0 * 1024.0));
-		printf("allocate outmask(%d x %d) = %f MB\n", outmask.cols, outmask.rows, outmask.cols * outmask.rows * sizeof(uint8_t) / (1024.0 * 1024.0));
+		//printf("allocate nums(%d x %d) = %f MB\n", nums.cols, nums.rows, nums.cols * nums.rows * sizeof(uint8_t) / (1024.0 * 1024.0));
+		//printf("allocate outmask(%d x %d) = %f MB\n", outmask.cols, outmask.rows, outmask.cols * outmask.rows * sizeof(uint8_t) / (1024.0 * 1024.0));
 	#endif
 
 	printf("init_seamdist\n");
@@ -929,6 +929,8 @@ void seam() {
 	int i;
 
 	output(1,"seaming...\n");
+	print_gpu_memory();
+
 	for (i=0; i<g_numimages; i++) g_images[i].seampresent=false;
 
 	if (!g_seamload_filename) {
@@ -966,8 +968,8 @@ void seam() {
 		{
 			set_g_edt_opencv(g_cvseams, g_cvoutmask, g_cvmasks);
 
-			for (int i = 0; i < g_cvmasks.size(); ++i)
-				printf("release g_cvmasks[%d](%d x %d) = %f MB\n", i, g_cvmasks[i].cols, g_cvmasks[i].rows, g_cvmasks[i].cols * g_cvmasks[i].rows * sizeof(uint8_t)/(1024.0*1024.0));
+			//for (int i = 0; i < g_cvmasks.size(); ++i)
+			//	printf("release g_cvmasks[%d](%d x %d) = %f MB\n", i, g_cvmasks[i].cols, g_cvmasks[i].rows, g_cvmasks[i].cols * g_cvmasks[i].rows * sizeof(uint8_t)/(1024.0*1024.0));
 			g_cvmasks.clear();
 		}
 		#endif

@@ -547,7 +547,7 @@ void extract_top_masks_opencv()
 		g_cvmaskpyramids[i][0] = cv::Mat::zeros(rows, cols, CV_8U);
 		#else
 		g_cvmaskpyramids[i][0] = cv::cuda::GpuMat(g_cvseams.rows, g_cvseams.cols, CV_8U, cv::Scalar(0));
-		printf("allocate g_cvmaskpyramids(%d x %d) = %f MB\n", g_cvmaskpyramids[i][0].cols, g_cvmaskpyramids[i][0].rows, g_cvmaskpyramids[i][0].cols* g_cvmaskpyramids[i][0].rows * sizeof(uint8_t) / (1024.0*1024.0));
+		//printf("allocate g_cvmaskpyramids(%d x %d) = %f MB\n", g_cvmaskpyramids[i][0].cols, g_cvmaskpyramids[i][0].rows, g_cvmaskpyramids[i][0].cols* g_cvmaskpyramids[i][0].rows * sizeof(uint8_t) / (1024.0*1024.0));
 		#endif
 	}
 
@@ -626,7 +626,8 @@ cv::Mat get_mask(int i, int l, int w, int h)
 
 void mask_pyramids() {
 	output(1,"masks...\n");
-	
+	print_gpu_memory();
+
 	#ifdef NO_OPENCV
 		extract_top_masks();
 		shrink_masks();
@@ -635,11 +636,6 @@ void mask_pyramids() {
 	{
 		extract_top_masks_opencv();
 		shrink_masks_opencv();
-
-		cv::Mat cpumat;
-		g_cvmaskpyramids[0][7].download(cpumat);
-		cv::imwrite("g_cvmaskpyramids07.png", cpumat);
-		exit(1);
 	}
 	#endif
 

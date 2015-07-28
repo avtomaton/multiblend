@@ -44,10 +44,7 @@ inline float get_l2(const cv::Point &p1, const cv::Point &p2)
 	return (p1.x - p2.x)*(p1.x - p2.x) + (p1.y - p2.y)*(p1.y - p2.y);
 }
 
-
-
-
-
+void print_gpu_memory();
 
 //load images
 void trim8(void* bitmap, uint32 w, uint32 h, int bpp, int* top, int* left, int* bottom, int* right);
@@ -176,9 +173,29 @@ void hshrink(struct_level* upper, struct_level* lower);
 void vshrink(struct_level* upper, struct_level* lower);
 void hps(struct_level* upper, struct_level *lower);
 void shrink_hps(struct_level* upper, struct_level* lower);
+
+#ifdef NO_CUDA
+void resizedown(const cv::Mat &umat, cv::Mat &lmat, const cv::Size &ofs);
+void resizeup(const cv::Mat &lmat, cv::Mat &umat, const cv::Size &ofs = cv::Size(0, 0));
+void shrink_opencv(struct_level* upper, struct_level* lower, const cv::Mat &umat, cv::Mat &lmat);
+void hps_opencv(struct_level* upper, struct_level* lower, cv::Mat &umat, const cv::Mat &lmat);
+void collapse_opencv(const cv::Mat &lower, cv::Mat &upper);
+void dither_opencv(cv::Mat &top, cv::Mat &out);
+#else
+void resizedown(const cv::cuda::GpuMat &umat, cv::cuda::GpuMat &lmat, const cv::Size &ofs);
+void resizeup(const cv::cuda::GpuMat &lmat, cv::cuda::GpuMat &umat, const cv::Size &ofs = cv::Size(0, 0));
+void shrink_opencv(struct_level* upper, struct_level* lower, const std::vector<cv::cuda::GpuMat> &umat, std::vector<cv::cuda::GpuMat> &lmat);
+void hps_opencv(struct_level* upper, struct_level* lower, std::vector<cv::cuda::GpuMat> &umat, const std::vector<cv::cuda::GpuMat> &lmat);
+void collapse_opencv(const cv::cuda::GpuMat &lower, cv::cuda::GpuMat &upper);
+void dither_opencv(cv::cuda::GpuMat &top, cv::cuda::GpuMat &out);
+#endif
+
 void copy_channel(int i, int c);
+void copy_channel_opencv(int i);
 void mask_into_output(struct_level* input, float* mask, struct_level* output, bool first);
+void mask_into_output_opencv(int i, int l, bool first);
 void collapse(struct_level* lower, struct_level* upper);
+
 void dither(struct_level* top, void* channel);
 void blend();
 

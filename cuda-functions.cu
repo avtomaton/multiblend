@@ -3,10 +3,17 @@
 #include <cuda_runtime.h>
 #include <opencv2/cudaarithm.hpp>
 
+#include <cstdio>
+
 //helpers
 static int calc_drid_dim(int array_size, int block_size)
 {
 	return (array_size - 1) / block_size + 1;
+}
+
+void cuda_get_memory(size_t *free, size_t *total)
+{
+	cudaMemGetInfo(free, total);
 }
 
 __global__ void kernel_find_distances_cycle_y_horiz(cv::cuda::PtrStep<float> ptr_dist, cv::cuda::PtrStep<uint8_t> ptr_mat, cv::cuda::PtrStep<uint8_t> ptr_mask, int shift, int ybeg, int size, int xbeg, int xend, int l_straight)
@@ -178,6 +185,110 @@ __global__ void kernel_extract_masks(cv::cuda::PtrStepSz<uint8_t> *ptr_masks, cv
 
 	auto pseam = ptr_cvseams.ptr(y);
 	ptr_masks[pseam[x]].ptr(y)[x] = mask_value;
+}
+
+__global__ void kernel_mask_into_output(cv::cuda::PtrStepSz<short> ptr_out, cv::cuda::PtrStepSz<short> ptr_in, cv::cuda::PtrStepSz<uint8_t> ptr_mask, cv::Size ofs, int max_value)
+{
+	size_t pt = blockIdx.x * blockDim.x + threadIdx.x;
+	if (pt >= ptr_in.cols * ptr_in.rows)
+		return;
+	int y = pt / ptr_in.cols;
+	int x = pt - ptr_in.cols * y;
+
+	auto pin = ptr_in.ptr(y);
+	auto pout = ofs.width + ptr_out.ptr(y + ofs.height);
+	auto pmask = ofs.width + ptr_mask.ptr(y + ofs.height);
+
+	pout[x] += (int)((float)pmask[x] * pin[x] / max_value + 0.5);
+}
+
+__global__ void kernel_pyrDown_x(cv::cuda::PtrStepSz<short> ptr_umat, cv::cuda::PtrStepSz<short> ptr_tmp)
+{
+	size_t pt = blockIdx.x * blockDim.x + threadIdx.x;
+	if (pt >= ptr_tmp.cols * ptr_tmp.rows)
+		return;
+	int y = pt / ptr_tmp.cols;
+	int x = pt - ptr_tmp.cols * y;
+
+	auto ptmp = ptr_tmp.ptr(y);
+	auto pumat = ptr_umat.ptr(y);
+
+	int temp = 2 * pumat[2 * x];
+
+	if (x != 0)
+		temp += pumat[2 * x - 1];
+	else
+		temp += pumat[2 * x];
+
+	if (x != ptr_tmp.cols - 1)
+		temp += pumat[2 * x + 1];
+	else
+		temp += pumat[2 * x];
+
+	ptmp[x] = temp;
+}
+
+__global__ void kernel_pyrDown_y(cv::cuda::PtrStepSz<short> ptr_tmp, cv::cuda::PtrStepSz<short> ptr_lmat)
+{
+	size_t pt = blockIdx.x * blockDim.x + threadIdx.x;
+	if (pt >= ptr_lmat.cols * ptr_lmat.rows)
+		return;
+	
+	int y = pt / ptr_lmat.cols;
+	int x = pt - ptr_lmat.cols * y;
+	
+	int temp = 2 * ptr_tmp.ptr(2 * y)[x];
+	
+	if (y != 0)
+		temp += ptr_tmp.ptr(2 * y - 1)[x];
+	else
+		temp += ptr_tmp.ptr(2 * y)[x];
+	
+	if (y != ptr_lmat.rows - 1)
+		temp += ptr_tmp.ptr(2 * y + 1)[x];
+	else
+		temp += ptr_tmp.ptr(2 * y)[x];
+
+	temp = (temp + 8) / 16;
+
+	ptr_lmat.ptr(y)[x] = temp;
+}
+
+__global__ void kernel_pyrUp_x(cv::cuda::PtrStepSz<short> ptr_lmat, cv::cuda::PtrStepSz<short> ptr_tmp)
+{
+	size_t pt = blockIdx.x * blockDim.x + threadIdx.x;
+	if (pt >= ptr_lmat.cols * ptr_lmat.rows)
+		return;
+
+	int y = pt / ptr_lmat.cols;
+	int x = pt - ptr_lmat.cols * y;
+
+	auto plmat = ptr_lmat.ptr(y);
+	auto ptmp = ptr_tmp.ptr(y);
+	
+	int temp = plmat[x];
+	ptmp[2 * x] = temp;
+
+	if (x != ptr_lmat.cols - 1)
+		ptmp[2 * x + 1] = (temp + plmat[x + 1] + 1) / 2;
+}
+
+__global__ void kernel_pyrUp_y(cv::cuda::PtrStepSz<short> ptr_tmp, cv::cuda::PtrStepSz<short> ptr_umat)
+{
+	size_t pt = blockIdx.x * blockDim.x + threadIdx.x;
+	if (pt >= ptr_tmp.cols * ptr_tmp.rows)
+		return;
+
+	int y = pt / ptr_tmp.cols;
+	int x = pt - ptr_tmp.cols * y;
+
+	auto pumat = ptr_umat.ptr(y);
+
+	int temp = ptr_tmp.ptr(y)[x];
+	ptr_umat.ptr(2 * y)[x] = temp;
+	
+	if (y != ptr_tmp.rows - 1)
+		ptr_umat.ptr(2 * y + 1)[x] = (temp + ptr_tmp.ptr(y + 1)[x] + 1) / 2;
 }
 
 void cuda_find_distances_cycle_y_horiz(
@@ -395,6 +506,91 @@ void cuda_extract_masks(std::vector<std::vector<cv::cuda::GpuMat> > &cvmaskpyram
 	printf("cuda time_kernel: %f ms\n", time_kernel);*/
 	cudaFree(dev_ptr_masks);
 }
+
+void cuda_mask_into_output(std::vector<cv::cuda::GpuMat> &outs, const std::vector<cv::cuda::GpuMat> &ins, const cv::cuda::GpuMat &mask, const cv::Size &ofs, int max_value)
+{
+	int size = ins[0].cols * ins[0].rows;
+	if (size < 1)
+		return;
+
+	int nthreads = 256;
+	dim3 block_dim(nthreads, 1);
+	dim3 grid_dim(calc_drid_dim(size, block_dim.x * block_dim.y), 1);
+
+	cv::cuda::PtrStepSz<uint8_t> ptr_mask = mask;
+
+	for (int c = 0; c < 3; ++c)
+	{
+		cv::cuda::PtrStepSz<short> ptr_in = ins[c];
+		cv::cuda::PtrStepSz<short> ptr_out = outs[c];
+
+		/*cudaEvent_t start, kernel;
+		cudaEventCreate(&start);
+		cudaEventCreate(&kernel);
+		cudaEventRecord(start, 0);*/
+		kernel_mask_into_output<<<grid_dim, block_dim>>>(ptr_out, ptr_in, ptr_mask, ofs, max_value);
+		/*cudaEventRecord(kernel, 0);
+		cudaEventSynchronize(kernel);
+
+		float time_kernel;
+		cudaEventElapsedTime(&time_kernel, start, kernel);
+		printf("cuda time_kernel: %f ms\n", time_kernel);*/
+	}
+}
+
+void cuda_pyrDown(const cv::cuda::GpuMat &umat, cv::cuda::GpuMat &lmat)
+{
+	cv::cuda::GpuMat tmp(umat.rows, (umat.cols + 1) >> 1, umat.type());
+	int sizex = tmp.cols * tmp.rows;
+	if (sizex < 1)
+		return;
+
+	int nthreads = 256;
+	int grid_dim = calc_drid_dim(sizex, nthreads);
+
+	cv::cuda::PtrStepSz<short> ptr_umat = umat;
+	cv::cuda::PtrStepSz<short> ptr_tmp = tmp;
+
+	kernel_pyrDown_x<<<grid_dim, nthreads>>>(ptr_umat, ptr_tmp);
+
+	lmat = cv::cuda::GpuMat((umat.rows + 1) >> 1, (umat.cols + 1) >> 1, umat.type());
+	cv::cuda::PtrStepSz<short> ptr_lmat = lmat;
+
+	int sizey = lmat.cols * lmat.rows;
+	if (sizey < 1)
+		return;
+	grid_dim = calc_drid_dim(sizey, nthreads);
+
+	kernel_pyrDown_y<<<grid_dim, nthreads>>>(ptr_tmp, ptr_lmat);
+}
+
+void cuda_pyrUp(const cv::cuda::GpuMat &lmat, cv::cuda::GpuMat &umat)
+{
+	int sizex = lmat.cols * lmat.rows;
+	if (sizex < 1)
+		return;
+	int nthreads = 256;
+	int grid_dim = calc_drid_dim(sizex, nthreads);
+
+	cv::cuda::GpuMat tmp(lmat.rows, (lmat.cols << 1) - 1, lmat.type());
+
+	cv::cuda::PtrStepSz<short> ptr_lmat = lmat;
+	cv::cuda::PtrStepSz<short> ptr_tmp = tmp;
+
+	kernel_pyrUp_x<<<grid_dim, nthreads>>>(ptr_lmat, ptr_tmp);
+	
+	int sizey = tmp.cols * tmp.rows;
+	if (sizey < 1)
+		return;
+
+	grid_dim = calc_drid_dim(sizey, nthreads);
+
+	umat = cv::cuda::GpuMat((lmat.rows << 1) - 1, (lmat.cols << 1) - 1, lmat.type());
+	cv::cuda::PtrStepSz<short> ptr_umat = umat;
+
+	kernel_pyrUp_y<<<grid_dim, nthreads>>>(ptr_tmp, ptr_umat);
+}
+
 
 /*
 __device__ __constant__ int MAXITER = 100;

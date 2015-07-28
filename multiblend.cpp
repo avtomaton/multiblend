@@ -78,10 +78,14 @@ int multiblend(const std::string &inputstring, std::vector<cv::Mat> &mats, std::
 int multiblend(const std::string &inputstring, std::vector<std::vector<cv::cuda::GpuMat> > &channels, std::vector<cv::cuda::GpuMat> &masks, std::vector<std::vector<cv::cuda::GpuMat> > &cvmaskpyramids, cv::cuda::GpuMat &cvoutmask)
 #endif
 {
+	printf("multiblend\n");
+	print_gpu_memory();
+
 	#ifdef NO_CUDA
 	g_cvmats = mats;
 	#else
 	g_cvchannels = channels;
+	channels.clear();
 	#endif
 
 	g_cvmasks = masks;
@@ -214,6 +218,9 @@ int multiblend(const std::string &inputstring, std::vector<std::vector<cv::cuda:
 #ifdef IS_APPLICATION
 int main()
 {
+	printf("main\n");
+	print_gpu_memory();
+
 	#ifdef NO_CUDA
 		std::vector<std::vector<cv::Mat> > cvmaskpyramids;
 		cv::Mat cvoutmask;
@@ -246,22 +253,18 @@ int main()
 			masks.push_back(cv::imread(std::string("mask_") + base_name[k] + std::string(buf), CV_LOAD_IMAGE_GRAYSCALE));
 		}
 
-
 		#ifdef NO_CUDA
 			multiblend(inputstring, mats, masks, cvmaskpyramids, cvoutmask);
 		#else
-			cv::cuda::GpuMat cuda_mat;
 			std::vector<std::vector<cv::cuda::GpuMat> > cuda_channels(mats.size());
 			std::vector<cv::cuda::GpuMat> cuda_masks(mats.size());
 			for (int i = 0; i < mats.size(); ++i)
 			{
+				cv::cuda::GpuMat cuda_mat;
 				cuda_mat.upload(mats[i]);
 				cuda_channels[i].resize(3);
 				cv::cuda::split(cuda_mat, cuda_channels[i]);
-
 				cuda_masks[i].upload(masks[i]);
-				printf("allocate cuda_channels[%d](%d x %d x 3) = %f MB\n", i, cuda_channels[i][0].cols, cuda_channels[i][0].rows, cuda_channels[i][0].cols * cuda_channels[i][0].rows * 3 * sizeof(uint8_t) / (1024.0 * 1024.0));
-				printf("allocate cuda_masks[%d](%d x %d) = %f MB\n", i, cuda_masks[i].cols, cuda_masks[i].rows, cuda_masks[i].cols * cuda_masks[i].rows * sizeof(uint8_t) / (1024.0 * 1024.0));
 			}
 			multiblend(inputstring, cuda_channels, cuda_masks, cuda_cvmaskpyramids, cuda_cvoutmask);
 		#endif
