@@ -551,8 +551,9 @@ void shrink_opencv(struct_level* upper, struct_level* lower, const std::vector<c
 	for (int c = 0; c < 3; ++c)
 	{
 		cv::cuda::GpuMat tresh;
+		Proftimer proftimer_resize(&mprofiler, "resizedown_shrink");
 		cuda_pyrDown(umat[c], lmat[c]);
-
+		proftimer_resize.stop();
 		/*cv::Mat um, lm;
 		umat[c].download(um);
 		lm = cv::Mat((um.rows + 1) >> 1, (um.cols + 1) >> 1, um.type());
@@ -786,6 +787,8 @@ void copy_channel_opencv(int i)
 #else
 void copy_channel_opencv(int i)
 {
+	Proftimer proftimer(&mprofiler, "copy_channel_opencv");
+
 	struct_level* level = &PY(i, 0);
 	int lw = level->w;
 	int lh = level->h;
