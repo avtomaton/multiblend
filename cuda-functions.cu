@@ -291,6 +291,22 @@ __global__ void kernel_pyrUp_y(cv::cuda::PtrStepSz<short> ptr_tmp, cv::cuda::Ptr
 		ptr_umat.ptr(2 * y + 1)[x] = (temp + ptr_tmp.ptr(y + 1)[x] + 1) / 2;
 }
 
+__global__ void kernel_dither(cv::cuda::PtrStepSz<short> ptr_in, cv::cuda::PtrStepSz<uint8_t> ptr_out, int denom)
+{
+	size_t pt = blockIdx.x * blockDim.x + threadIdx.x;
+	if (pt >= ptr_in.cols * ptr_in.rows)
+		return;
+	int y = pt / ptr_in.cols;
+	int x = pt - ptr_in.cols * y;
+
+	int temp = ptr_in.ptr(y)[x];
+	//temp += random_number;
+	temp /= denom;
+	if (temp < 0) temp = 0;
+	else if (temp > 255) temp = 255;
+	ptr_out.ptr(y)[x] = temp;
+}
+
 void cuda_find_distances_cycle_y_horiz(
 	cv::cuda::GpuMat &dist, cv::cuda::GpuMat &mat, const cv::cuda::GpuMat &mask,
 	int shift, int ybeg, int yend, int xbeg, int xend,
@@ -472,6 +488,8 @@ void cuda_find_seamdistances_cycle_y_horiz(
 	cudaFree(dev_ptr_masks);
 }
 
+
+
 void cuda_extract_masks(std::vector<std::vector<cv::cuda::GpuMat> > &cvmaskpyramids, const cv::cuda::GpuMat &cvseams, int mask_value)
 {
 	int size = cvseams.cols * cvseams.rows;
@@ -591,6 +609,31 @@ void cuda_pyrUp(const cv::cuda::GpuMat &lmat, cv::cuda::GpuMat &umat)
 	kernel_pyrUp_y<<<grid_dim, nthreads>>>(ptr_tmp, ptr_umat);
 }
 
+void cuda_dither(const cv::cuda::GpuMat &in, cv::cuda::GpuMat &out, int denom)
+{
+	int size = in.cols * in.rows;
+	if (size < 1)
+		return;
+
+	int nthreads = 256;
+	dim3 block_dim(nthreads, 1);
+	dim3 grid_dim(calc_drid_dim(size, block_dim.x * block_dim.y), 1);
+	out = cv::cuda::GpuMat(in.rows, in.cols, CV_8U);
+	cv::cuda::PtrStepSz<short> ptr_in = in;
+	cv::cuda::PtrStepSz<uint8_t> ptr_out = out;
+
+	/*cudaEvent_t start, kernel;
+	cudaEventCreate(&start);
+	cudaEventCreate(&kernel);
+	cudaEventRecord(start, 0);*/
+	kernel_dither<<<grid_dim, block_dim>>>(ptr_in, ptr_out, denom);
+	/*cudaEventRecord(kernel, 0);
+	cudaEventSynchronize(kernel);
+
+	float time_kernel;
+	cudaEventElapsedTime(&time_kernel, start, kernel);
+	printf("cuda time_kernel: %f ms\n", time_kernel);*/
+}
 
 /*
 __device__ __constant__ int MAXITER = 100;
